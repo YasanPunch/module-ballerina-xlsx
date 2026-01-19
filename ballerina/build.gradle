@@ -47,9 +47,10 @@ def stripBallerinaExtensionVersion(String extVersion) {
 ballerina {
     packageOrganization = packageOrg
     module = packageName
+    langVersion = project.ballerinaLangVersion
     testCoverageParam = "--code-coverage --coverage-format=xml"
-    isConnector = true
-    platform = "any"
+    isConnector = false
+    platform = "java21"
 }
 
 task updateTomlFiles {
@@ -60,14 +61,33 @@ task updateTomlFiles {
     }
 }
 
+updateTomlFiles.dependsOn copyStdlibs
+
 task commitTomlFiles {
     doLast {
+        def filesToCommit = []
+        def ballerinaToml = new File("$project.projectDir/Ballerina.toml")
+        def dependenciesToml = new File("$project.projectDir/Dependencies.toml")
+        
+        if (ballerinaToml.exists()) {
+            filesToCommit.add("Ballerina.toml")
+        }
+        if (dependenciesToml.exists()) {
+            filesToCommit.add("Dependencies.toml")
+        }
+        
+        if (filesToCommit.isEmpty()) {
+            println "No TOML files to commit"
+            return
+        }
+        
         project.exec {
             ignoreExitValue true
+            def filesList = filesToCommit.join(" ")
             if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-                commandLine 'cmd', '/c', "git commit -m \"[Automated] Update the toml files\" Ballerina.toml Dependencies.toml"
+                commandLine 'cmd', '/c', "git commit -m \"[Automated] Update the toml files\" ${filesList}"
             } else {
-                commandLine 'sh', '-c', "git commit -m '[Automated] Update the toml files' Ballerina.toml Dependencies.toml"
+                commandLine 'sh', '-c', "git commit -m '[Automated] Update the toml files' ${filesList}"
             }
         }
     }
@@ -95,6 +115,8 @@ clean {
     delete 'build'
 }
 
+build.dependsOn ":xlsx-native:build"
 build.dependsOn "generatePomFileForMavenPublication"
+test.dependsOn ":xlsx-native:build"
 publishToMavenLocal.dependsOn build
 publish.dependsOn build

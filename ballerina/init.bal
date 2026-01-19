@@ -13,3 +13,15 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
+import ballerina/jballerina.java;
+
+# Initialize the module.
+# This function is called when the module is loaded.
+function init() returns error? {
+    setModule();
+}
+
+isolated function setModule() = @java:Method {
+    'class: "io.ballerina.lib.data.xlsx.utils.ModuleUtils"
+} external;

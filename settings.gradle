@@ -29,8 +29,10 @@ plugins {
 
 rootProject.name = 'module-ballerina-xlsx'
 
+include ':xlsx-native'
 include ':xlsx-ballerina'
 
+project(':xlsx-native').projectDir = file("native")
 project(':xlsx-ballerina').projectDir = file("ballerina")
 
 gradleEnterprise {
