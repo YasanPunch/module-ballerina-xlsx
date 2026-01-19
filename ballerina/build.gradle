@@ -115,8 +115,16 @@ clean {
     delete 'build'
 }
 
+task deleteDependencyTomlFiles {
+    if (project.hasProperty("deleteDependencies")) {
+        delete "${project.projectDir}/Dependencies.toml"
+    }
+}
+
 build.dependsOn ":xlsx-native:build"
 build.dependsOn "generatePomFileForMavenPublication"
+build.dependsOn deleteDependencyTomlFiles
 test.dependsOn ":xlsx-native:build"
+test.dependsOn deleteDependencyTomlFiles
 publishToMavenLocal.dependsOn build
 publish.dependsOn build
