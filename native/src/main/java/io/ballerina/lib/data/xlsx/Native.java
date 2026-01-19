@@ -28,9 +28,6 @@ import io.ballerina.runtime.api.values.BStream;
 import io.ballerina.runtime.api.values.BString;
 import io.ballerina.runtime.api.values.BTypedesc;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-
 /**
  * Native entry point for Ballerina XLSX module.
  * This class provides the bridge between Ballerina and Java for Excel operations.

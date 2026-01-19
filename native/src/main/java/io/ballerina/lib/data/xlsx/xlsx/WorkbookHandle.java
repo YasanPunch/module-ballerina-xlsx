@@ -194,7 +194,7 @@ public final class WorkbookHandle {
         try {
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
             workbook.write(bos);
-            return bos.toByteArray();
+            return ValueCreator.createArrayValue(bos.toByteArray());
         } catch (IOException e) {
             return DiagnosticLog.error("Failed to convert workbook to bytes: " + e.getMessage(), e);
         }

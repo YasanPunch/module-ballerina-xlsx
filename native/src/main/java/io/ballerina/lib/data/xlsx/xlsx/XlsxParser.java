@@ -18,7 +18,6 @@
 
 package io.ballerina.lib.data.xlsx.xlsx;
 
-import io.ballerina.lib.data.xlsx.utils.Constants;
 import io.ballerina.lib.data.xlsx.utils.DiagnosticLog;
 import io.ballerina.lib.data.xlsx.utils.UsedRangeDetector;
 import io.ballerina.lib.data.xlsx.utils.XlsxConfig;

@@ -25,6 +25,7 @@ import io.ballerina.runtime.api.types.ArrayType;
 import io.ballerina.runtime.api.types.Field;
 import io.ballerina.runtime.api.types.RecordType;
 import io.ballerina.runtime.api.types.Type;
+import io.ballerina.runtime.api.creators.ValueCreator;
 import io.ballerina.runtime.api.values.BArray;
 import io.ballerina.runtime.api.values.BMap;
 import io.ballerina.runtime.api.values.BString;
@@ -85,7 +86,7 @@ public final class XlsxWriter {
             // Convert to bytes
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
             workbook.write(bos);
-            return bos.toByteArray();
+            return ValueCreator.createArrayValue(bos.toByteArray());
 
         } catch (IOException e) {
             return DiagnosticLog.error("Failed to create XLSX: " + e.getMessage(), e);
