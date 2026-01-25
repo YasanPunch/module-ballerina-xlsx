@@ -26,7 +26,6 @@ modules = [
 org = "ballerina"
 name = "io"
 version = "1.8.0"
-scope = "testOnly"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"},
 	{org = "ballerina", name = "lang.value"}
@@ -82,7 +81,6 @@ scope = "testOnly"
 org = "ballerina"
 name = "lang.value"
 version = "0.0.0"
-scope = "testOnly"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"}
 ]
