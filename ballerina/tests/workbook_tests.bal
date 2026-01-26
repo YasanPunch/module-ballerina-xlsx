@@ -14,15 +14,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import ballerina/io;
+import ballerina/file;
 import ballerina/test;
 
 @test:Config {
     groups: ["workbook"]
 }
 function testOpenWorkbook() returns error? {
-    byte[] xlsxData = check io:fileReadBytes(TEST_DATA_DIR + "multi_sheet.xlsx");
-    Workbook wb = check openWorkbook(xlsxData);
+    Workbook wb = check openWorkbook(TEST_DATA_DIR + "multi_sheet.xlsx");
 
     test:assertTrue(wb.getSheetCount() > 0, "Should have at least one sheet");
     check wb.close();
@@ -32,8 +31,7 @@ function testOpenWorkbook() returns error? {
     groups: ["workbook"]
 }
 function testGetSheetNames() returns error? {
-    byte[] xlsxData = check io:fileReadBytes(TEST_DATA_DIR + "multi_sheet.xlsx");
-    Workbook wb = check openWorkbook(xlsxData);
+    Workbook wb = check openWorkbook(TEST_DATA_DIR + "multi_sheet.xlsx");
 
     string[] names = wb.getSheetNames();
     test:assertTrue(names.length() > 0, "Should have sheet names");
@@ -44,8 +42,7 @@ function testGetSheetNames() returns error? {
     groups: ["workbook"]
 }
 function testGetSheetByName() returns error? {
-    byte[] xlsxData = check io:fileReadBytes(TEST_DATA_DIR + "multi_sheet.xlsx");
-    Workbook wb = check openWorkbook(xlsxData);
+    Workbook wb = check openWorkbook(TEST_DATA_DIR + "multi_sheet.xlsx");
 
     string[] names = wb.getSheetNames();
     Sheet sheet = check wb.getSheet(names[0]);
@@ -57,8 +54,7 @@ function testGetSheetByName() returns error? {
     groups: ["workbook"]
 }
 function testGetSheetByIndex() returns error? {
-    byte[] xlsxData = check io:fileReadBytes(TEST_DATA_DIR + "multi_sheet.xlsx");
-    Workbook wb = check openWorkbook(xlsxData);
+    Workbook wb = check openWorkbook(TEST_DATA_DIR + "multi_sheet.xlsx");
 
     Sheet sheet = check wb.getSheetByIndex(0);
     string[] names = wb.getSheetNames();
@@ -70,8 +66,7 @@ function testGetSheetByIndex() returns error? {
     groups: ["workbook", "negative"]
 }
 function testGetSheetNotFound() returns error? {
-    byte[] xlsxData = check io:fileReadBytes(TEST_DATA_DIR + "simple.xlsx");
-    Workbook wb = check openWorkbook(xlsxData);
+    Workbook wb = check openWorkbook(TEST_DATA_DIR + "simple.xlsx");
 
     Sheet|SheetNotFoundError result = wb.getSheet("NonExistentSheet");
     test:assertTrue(result is SheetNotFoundError, "Should return SheetNotFoundError");
@@ -103,28 +98,33 @@ function testCreateSheet() returns error? {
 @test:Config {
     groups: ["workbook"]
 }
-function testWorkbookToBytes() returns error? {
+function testWorkbookSave() returns error? {
     Workbook wb = check openWorkbook();
     Sheet sheet = check wb.createSheet("Data");
 
     string[][] data = [["Name", "Value"], ["Test", "123"]];
     check sheet.putRows(data);
 
-    byte[] xlsxBytes = check wb.toBytes();
-    test:assertTrue(xlsxBytes.length() > 0, "Should generate non-empty XLSX bytes");
+    string tempFile = TEST_DATA_DIR + "temp_workbook_save.xlsx";
+    check wb.save(tempFile);
     check wb.close();
 
+    // Verify file was created and has content
+    test:assertTrue(check file:test(tempFile, file:EXISTS), "File should exist");
+
     // Verify by reading back
-    string[][] parsed = check parseBytes(xlsxBytes);
+    string[][] parsed = check parse(tempFile);
     test:assertEquals(parsed[0][0], "Name", "Data should be readable");
+
+    // Cleanup
+    check file:remove(tempFile);
 }
 
 @test:Config {
     groups: ["workbook"]
 }
 function testSheetGetRows() returns error? {
-    byte[] xlsxData = check io:fileReadBytes(TEST_DATA_DIR + "simple.xlsx");
-    Workbook wb = check openWorkbook(xlsxData);
+    Workbook wb = check openWorkbook(TEST_DATA_DIR + "simple.xlsx");
     Sheet sheet = check wb.getSheetByIndex(0);
 
     string[][] rows = check sheet.getRows();
@@ -158,8 +158,7 @@ function testSheetPutRows() returns error? {
     groups: ["workbook"]
 }
 function testSheetMetadata() returns error? {
-    byte[] xlsxData = check io:fileReadBytes(TEST_DATA_DIR + "simple.xlsx");
-    Workbook wb = check openWorkbook(xlsxData);
+    Workbook wb = check openWorkbook(TEST_DATA_DIR + "simple.xlsx");
     Sheet sheet = check wb.getSheetByIndex(0);
 
     string usedRange = sheet.getUsedRange();

@@ -37,13 +37,10 @@ public final class Constants {
     public static final String ORG_NAME = "ballerinax";
 
     // Parse options field names
-    public static final BString SHEET_NAME = StringUtils.fromString("sheetName");
-    public static final BString SHEET_INDEX = StringUtils.fromString("sheetIndex");
     public static final BString HEADER_ROW = StringUtils.fromString("headerRow");
     public static final BString DATA_START_ROW = StringUtils.fromString("dataStartRow");
     public static final BString INCLUDE_EMPTY_ROWS = StringUtils.fromString("includeEmptyRows");
     public static final BString FORMULA_MODE = StringUtils.fromString("formulaMode");
-    public static final BString NIL_VALUE = StringUtils.fromString("nilValue");
     public static final BString ENABLE_CONSTRAINT_VALIDATION = StringUtils.fromString("enableConstraintValidation");
 
     // Write options field names
@@ -54,17 +51,6 @@ public final class Constants {
     // Formula mode values
     public static final String FORMULA_MODE_CACHED = "CACHED";
     public static final String FORMULA_MODE_TEXT = "TEXT";
-
-    // Nil value options
-    public static final String NIL_EMPTY_STRING = "";
-    public static final String NIL_NULL = "null";
-    public static final String NIL_NA = "N/A";
-    public static final String NIL_BRACKETS = "()";
-
-    // Native data keys
-    public static final String NATIVE_WORKBOOK = "nativeWorkbook";
-    public static final String NATIVE_SHEET = "nativeSheet";
-    public static final String NATIVE_USED_RANGE = "nativeUsedRange";
 
     // Ballerina type names
     public static final String WORKBOOK_TYPE = "Workbook";
@@ -77,9 +63,9 @@ public final class Constants {
     // Error type names
     public static final String ERROR_TYPE = "Error";
     public static final String PARSE_ERROR_TYPE = "ParseError";
+    public static final String FILE_NOT_FOUND_ERROR_TYPE = "FileNotFoundError";
     public static final String SHEET_NOT_FOUND_ERROR_TYPE = "SheetNotFoundError";
     public static final String TYPE_CONVERSION_ERROR_TYPE = "TypeConversionError";
-    public static final String RESOURCE_LIMIT_ERROR_TYPE = "ResourceLimitError";
 
     // Limits
     public static final int MAX_FILE_SIZE_MB = 100;

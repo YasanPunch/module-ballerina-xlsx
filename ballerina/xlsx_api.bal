@@ -16,7 +16,14 @@
 
 import ballerina/jballerina.java;
 
-# Parse XLSX bytes into Ballerina values.
+// ============================================================================
+// PRIMARY API - File-based operations (recommended for most use cases)
+// ============================================================================
+
+# Parse an XLSX file into Ballerina values.
+#
+# This is the recommended way to read XLSX files. It reads the specified
+# sheet (first sheet by default) and converts rows to the target type.
 #
 # Supports parsing to:
 # - `string[][]` - Raw string array
@@ -24,87 +31,107 @@ import ballerina/jballerina.java;
 # - `map<anydata>[]` - Array of maps
 #
 # ```ballerina
-# // Parse as string array
-# string[][] rows = check xlsx:parseBytes(data);
+# // Parse first sheet as records
+# Employee[] employees = check xlsx:parse("employees.xlsx");
 #
-# // Parse as records
-# type Employee record {| string name; int age; |};
-# Employee[] employees = check xlsx:parseBytes(data);
+# // Parse specific sheet by name
+# Employee[] sales = check xlsx:parse("report.xlsx", "Sales");
+#
+# // Parse specific sheet by index with options
+# Employee[] data = check xlsx:parse("report.xlsx", 1, {headerRow: 2});
 # ```
 #
-# + data - XLSX file bytes
+# + path - Path to the XLSX file
+# + sheet - Sheet to read: name (string) or index (int, 0-based). Default: 0 (first sheet)
 # + options - Parse options
 # + t - Target type descriptor
 # + return - Parsed data or error
-public isolated function parseBytes(byte[] data, ParseOptions options = {}, typedesc<anydata[]> t = <>)
-        returns t|Error = @java:Method {
-    'class: "io.ballerina.lib.data.xlsx.Native"
-} external;
-
-# Parse XLSX from a byte stream.
-#
-# Similar to `parseBytes` but accepts a stream of bytes.
-# Useful for parsing files from network streams or large files.
-#
-# ```ballerina
-# stream<byte[], io:Error?> fileStream = check io:fileReadBlocksAsStream("data.xlsx");
-# string[][] rows = check xlsx:parseStream(fileStream);
-# ```
-#
-# + dataStream - Stream of byte blocks
-# + options - Parse options
-# + t - Target type descriptor
-# + return - Parsed data or error
-public isolated function parseStream(stream<byte[], error?> dataStream, ParseOptions options = {},
+public isolated function parse(string path, string|int sheet = 0, ParseOptions options = {},
         typedesc<anydata[]> t = <>) returns t|Error = @java:Method {
     'class: "io.ballerina.lib.data.xlsx.Native"
 } external;
 
-# Convert Ballerina data to XLSX bytes.
+# Write Ballerina data to an XLSX file.
 #
-# Supports converting from:
+# This is the recommended way to write XLSX files. Creates a single-sheet
+# XLSX file from the provided data.
+#
+# Supports writing from:
 # - `string[][]` - Raw string array (first row can be headers)
 # - `record{}[]` - Array of records (field names become headers)
 # - `map<anydata>[]` - Array of maps (keys become headers)
 #
 # ```ballerina
-# // From string array
-# string[][] data = [["Name", "Age"], ["John", "30"]];
-# byte[] xlsx = check xlsx:toBytes(data);
-#
-# // From records
 # Employee[] employees = [{name: "John", age: 30}];
-# byte[] xlsx = check xlsx:toBytes(employees);
+#
+# // Write to file
+# check xlsx:write(employees, "output.xlsx");
+#
+# // Write with options
+# check xlsx:write(employees, "report.xlsx", sheetName = "Employees");
 # ```
 #
-# + data - Data to convert
+# + data - Data to write
+# + path - Path to the output XLSX file
 # + options - Write options
-# + return - XLSX bytes or error
-public isolated function toBytes(anydata[] data, *WriteOptions options) returns byte[]|Error = @java:Method {
+# + return - Error if write fails
+public isolated function write(anydata[] data, string path, *WriteOptions options) returns Error? = @java:Method {
     'class: "io.ballerina.lib.data.xlsx.Native"
 } external;
+
+// ============================================================================
+// STREAMING API - Deferred to v2
+// ============================================================================
+
+# Parse XLSX from a byte stream.
+#
+# **Note**: Deferred to v2. XLSX format requires SharedStringsTable to be
+# loaded first, making true streaming complex.
+#
+# + dataStream - Stream of byte blocks
+# + sheet - Sheet to read: name (string) or index (int, 0-based). Default: 0 (first sheet)
+# + options - Parse options
+# + t - Target type descriptor
+# + return - Parsed data or error
+public isolated function parseAsStream(stream<byte[], error?> dataStream, string|int sheet = 0,
+        ParseOptions options = {}, typedesc<anydata[]> t = <>) returns t|Error = @java:Method {
+    'class: "io.ballerina.lib.data.xlsx.Native"
+} external;
+
+// ============================================================================
+// WORKBOOK API - For multi-sheet operations
+// ============================================================================
 
 # Open an XLSX workbook for multi-sheet access.
 #
 # Use this when you need to:
 # - Access multiple sheets efficiently
 # - Create a new workbook with multiple sheets
-# - Read workbook metadata
+# - Modify and save workbooks
 #
 # ```ballerina
-# // Open existing workbook
-# xlsx:Workbook wb = check xlsx:openWorkbook(data);
+# // Open from file path (most common)
+# xlsx:Workbook wb = check xlsx:openWorkbook("report.xlsx");
+#
+# // Create new empty workbook
+# xlsx:Workbook wb = check xlsx:openWorkbook();
+#
+# // Work with sheets
 # string[] sheets = wb.getSheetNames();
 # xlsx:Sheet sheet = check wb.getSheet("Sales");
-# string[][] rows = check sheet.getRows();
+# Employee[] data = check sheet.getRows();
+#
+# // Save and close
+# check wb.save("updated.xlsx");
+# check wb.close();
 # ```
 #
-# + data - XLSX file bytes (optional, creates new workbook if not provided)
+# + path - File path (string) or nil to create new workbook
 # + return - Workbook instance or error
-public isolated function openWorkbook(byte[]? data = ()) returns Workbook|Error {
+public isolated function openWorkbook(string? path = ()) returns Workbook|Error {
     Workbook workbook = new;
-    if data is byte[] {
-        check workbook.initFromBytes(data);
+    if path is string {
+        check workbook.initFromPath(path);
     } else {
         check workbook.initNew();
     }

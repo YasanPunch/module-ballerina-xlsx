@@ -22,25 +22,51 @@ public enum FormulaMode {
     TEXT
 }
 
+# Annotation to map a record field to a specific Excel column name.
+# Use this when the Excel column header doesn't match the Ballerina field name.
+#
+# ```ballerina
+# type Employee record {
+#     @xlsx:Name {value: "First Name"}
+#     string firstName;
+#     @xlsx:Name {value: "Employee ID"}
+#     int id;
+# };
+# ```
+public type NameConfig record {|
+    # The Excel column header name to map to this field.
+    string value;
+|};
+
+# Annotation to specify the Excel column name for a record field.
+public const annotation NameConfig Name on record field;
+
 # Options for parsing XLSX data.
 #
-# + sheetName - Name of the sheet to read (default: first sheet)
-# + sheetIndex - Index of the sheet to read (0-based, alternative to sheetName)
-# + headerRow - Row number containing headers (0-based, default: 0)
-# + dataStartRow - Row number where data starts (0-based, default: headerRow + 1)
+# + headerRow - Row containing column headers/names (0-based index).
+#               Set to -1 if the sheet has no headers (first row is data).
+#               Example: If headers are in row 1 (second row), set this to 1.
+# + dataStartRow - Row where actual data begins (0-based index).
+#                  If not specified, defaults to headerRow + 1.
+#                  Example: If headerRow=0, data starts at row 1 by default.
 # + includeEmptyRows - Whether to include empty rows in output (default: false)
 # + formulaMode - How to handle formula cells (default: CACHED)
-# + nilValue - String value to treat as nil (default: empty string)
 # + enableConstraintValidation - Whether to validate type constraints (default: true)
+# + allowDataProjection - Data projection configuration.
+#                         Set to `false` to disable data projection.
+#                         When enabled (default `{}`):
+#                         - `nilAsOptionalField`: Treat nil values as optional field absence
+#                         - `absentAsNilableType`: Allow absent columns for nilable types
 public type ParseOptions record {|
-    string sheetName?;
-    int sheetIndex?;
     int headerRow = 0;
     int dataStartRow?;
     boolean includeEmptyRows = false;
     FormulaMode formulaMode = CACHED;
-    string nilValue?;
     boolean enableConstraintValidation = true;
+    record {|
+        boolean nilAsOptionalField = false;
+        boolean absentAsNilableType = false;
+    |}|false allowDataProjection = {};
 |};
 
 # Options for writing XLSX data.
@@ -56,17 +82,24 @@ public type WriteOptions record {|
 
 # Options for reading rows from a sheet.
 #
-# + headerRow - Row number containing headers (0-based, default: 0)
-# + dataStartRow - Row number where data starts (0-based, default: headerRow + 1)
+# + headerRow - Row containing column headers/names (0-based index).
+#               Set to -1 if the sheet has no headers (first row is data).
+# + dataStartRow - Row where actual data begins (0-based index).
+#                  If not specified, defaults to headerRow + 1.
 # + includeEmptyRows - Whether to include empty rows (default: false)
 # + formulaMode - How to handle formula cells (default: CACHED)
-# + nilValue - String value to treat as nil
+# + enableConstraintValidation - Whether to validate type constraints (default: true)
+# + allowDataProjection - Data projection configuration (see ParseOptions)
 public type RowReadOptions record {|
     int headerRow = 0;
     int dataStartRow?;
     boolean includeEmptyRows = false;
     FormulaMode formulaMode = CACHED;
-    string nilValue?;
+    boolean enableConstraintValidation = true;
+    record {|
+        boolean nilAsOptionalField = false;
+        boolean absentAsNilableType = false;
+    |}|false allowDataProjection = {};
 |};
 
 # Options for writing rows to a sheet.

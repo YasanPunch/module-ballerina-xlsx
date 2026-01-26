@@ -75,6 +75,30 @@ public isolated class Sheet {
         'class: "io.ballerina.lib.data.xlsx.xlsx.SheetHandle"
     } external;
 
+    # Get a single row from the sheet by index.
+    #
+    # Supports reading to:
+    # - `string[]` - Raw string array for the row
+    # - `record{}` - Single record
+    #
+    # ```ballerina
+    # // Get row as string array
+    # string[] row = check sheet.getRow(5);
+    #
+    # // Get row as record
+    # type Employee record {| string name; int age; |};
+    # Employee employee = check sheet.getRow(5);
+    # ```
+    #
+    # + index - Row index (0-based, relative to data start row)
+    # + options - Read options
+    # + t - Target type descriptor
+    # + return - Single row or error
+    public isolated function getRow(int index, RowReadOptions options = {}, typedesc<anydata> t = <>)
+            returns t|Error = @java:Method {
+        'class: "io.ballerina.lib.data.xlsx.xlsx.SheetHandle"
+    } external;
+
     # Write rows to the sheet.
     #
     # Supports writing from:

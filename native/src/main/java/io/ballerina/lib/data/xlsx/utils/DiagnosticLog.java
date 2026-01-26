@@ -124,6 +124,35 @@ public final class DiagnosticLog {
     }
 
     /**
+     * Create a file not found error.
+     *
+     * @param message Error message
+     * @return BError
+     */
+    public static BError fileNotFoundError(String message) {
+        return createTypedError(Constants.FILE_NOT_FOUND_ERROR_TYPE, message, null);
+    }
+
+    /**
+     * Create a file not found error with cause.
+     *
+     * @param message Error message
+     * @param cause   Cause of the error
+     * @return BError
+     */
+    public static BError fileNotFoundError(String message, Throwable cause) {
+        BError causeError = cause instanceof BError ? (BError) cause :
+                ErrorCreator.createError(StringUtils.fromString(cause.getMessage()));
+        return ErrorCreator.createError(
+                ModuleUtils.getModule(),
+                Constants.FILE_NOT_FOUND_ERROR_TYPE,
+                StringUtils.fromString(message),
+                causeError,
+                null
+        );
+    }
+
+    /**
      * Create a sheet not found error.
      *
      * @param sheetName Sheet name that was not found
@@ -147,16 +176,6 @@ public final class DiagnosticLog {
     public static BError typeConversionError(String message, String cellAddress, Integer row, Integer column) {
         BMap<BString, Object> details = createErrorDetails(null, cellAddress, row, column);
         return createTypedError(Constants.TYPE_CONVERSION_ERROR_TYPE, message, details);
-    }
-
-    /**
-     * Create a resource limit error.
-     *
-     * @param message Error message
-     * @return BError
-     */
-    public static BError resourceLimitError(String message) {
-        return createTypedError(Constants.RESOURCE_LIMIT_ERROR_TYPE, message, null);
     }
 
     private static BError createTypedError(String errorType, String message, BMap<BString, Object> details) {

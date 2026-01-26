@@ -25,7 +25,7 @@ import io.ballerina.runtime.api.types.ArrayType;
 import io.ballerina.runtime.api.types.Field;
 import io.ballerina.runtime.api.types.RecordType;
 import io.ballerina.runtime.api.types.Type;
-import io.ballerina.runtime.api.creators.ValueCreator;
+import io.ballerina.runtime.api.utils.TypeUtils;
 import io.ballerina.runtime.api.values.BArray;
 import io.ballerina.runtime.api.values.BMap;
 import io.ballerina.runtime.api.values.BString;
@@ -35,7 +35,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import java.io.ByteArrayOutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,20 +53,25 @@ public final class XlsxWriter {
     }
 
     /**
-     * Convert Ballerina data to XLSX bytes.
+     * Write Ballerina data directly to an XLSX file.
      *
-     * @param data    Ballerina array (string[][] or record[])
-     * @param options Write options
-     * @return XLSX file bytes, or error
+     * @param filePath Path to the output file
+     * @param data     Ballerina array (string[][] or record[])
+     * @param options  Write options
+     * @return null on success, error on failure
      */
-    public static Object toBytes(BArray data, BMap<BString, Object> options) {
+    public static Object writeToFile(String filePath, BArray data, BMap<BString, Object> options) {
         XlsxConfig config = XlsxConfig.fromWriteOptions(options);
 
-        try (Workbook workbook = new XSSFWorkbook()) {
+        try (Workbook workbook = new XSSFWorkbook();
+             FileOutputStream fos = new FileOutputStream(filePath)) {
+
             Sheet sheet = workbook.createSheet(config.getWriteSheetName());
 
             Type elementType = ((ArrayType) data.getType()).getElementType();
-            int elementTag = elementType.getTag();
+            // Resolve referenced types (important for module-defined types like `type X record {...}`)
+            Type resolvedElementType = TypeUtils.getReferredType(elementType);
+            int elementTag = resolvedElementType.getTag();
 
             int startRow = config.getStartRow();
 
@@ -75,21 +80,20 @@ public final class XlsxWriter {
                 writeArrayData(sheet, data, startRow);
             } else if (elementTag == TypeTags.RECORD_TYPE_TAG) {
                 // record[] - write records with headers
-                writeRecordData(sheet, data, (RecordType) elementType, config, startRow);
+                writeRecordData(sheet, data, (RecordType) resolvedElementType, config, startRow);
             } else if (elementTag == TypeTags.MAP_TAG) {
                 // map[] - write maps with headers
                 writeMapData(sheet, data, config, startRow);
             } else {
-                return DiagnosticLog.error("Unsupported data type for XLSX export: " + elementType);
+                return DiagnosticLog.error("Unsupported data type for XLSX export: " + resolvedElementType);
             }
 
-            // Convert to bytes
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            workbook.write(bos);
-            return ValueCreator.createArrayValue(bos.toByteArray());
+            // Write directly to file - efficient!
+            workbook.write(fos);
+            return null; // Success
 
         } catch (IOException e) {
-            return DiagnosticLog.error("Failed to create XLSX: " + e.getMessage(), e);
+            return DiagnosticLog.error("Failed to write XLSX file: " + e.getMessage(), e);
         } catch (Exception e) {
             return DiagnosticLog.error("Error writing XLSX: " + e.getMessage(), e);
         }
@@ -210,18 +214,20 @@ public final class XlsxWriter {
 
         try {
             Type elementType = ((ArrayType) data.getType()).getElementType();
-            int elementTag = elementType.getTag();
+            // Resolve referenced types (important for module-defined types like `type X record {...}`)
+            Type resolvedElementType = TypeUtils.getReferredType(elementType);
+            int elementTag = resolvedElementType.getTag();
 
             int startRow = config.getStartRow();
 
             if (elementTag == TypeTags.ARRAY_TAG) {
                 writeArrayData(sheet, data, startRow);
             } else if (elementTag == TypeTags.RECORD_TYPE_TAG) {
-                writeRecordData(sheet, data, (RecordType) elementType, config, startRow);
+                writeRecordData(sheet, data, (RecordType) resolvedElementType, config, startRow);
             } else if (elementTag == TypeTags.MAP_TAG) {
                 writeMapData(sheet, data, config, startRow);
             } else {
-                return DiagnosticLog.error("Unsupported data type for sheet write: " + elementType);
+                return DiagnosticLog.error("Unsupported data type for sheet write: " + resolvedElementType);
             }
 
             return null; // Success

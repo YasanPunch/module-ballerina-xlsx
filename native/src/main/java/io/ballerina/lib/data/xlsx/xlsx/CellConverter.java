@@ -135,8 +135,8 @@ public final class CellConverter {
         switch (cellType) {
             case STRING:
                 String strValue = cell.getStringCellValue();
-                // Check for nil value
-                if (isNilValue(strValue, config)) {
+                // Check for nil value (null or empty string)
+                if (isNilValue(strValue)) {
                     return null;
                 }
                 return convertStringToTarget(strValue, targetType);
@@ -162,17 +162,8 @@ public final class CellConverter {
         }
     }
 
-    private static boolean isNilValue(String value, XlsxConfig config) {
-        if (value == null) {
-            return true;
-        }
-
-        String nilValue = config.getNilValue();
-        if (nilValue == null) {
-            return value.trim().isEmpty();
-        }
-
-        return nilValue.equals(value);
+    private static boolean isNilValue(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     private static Object convertStringToTarget(String value, Type targetType) {

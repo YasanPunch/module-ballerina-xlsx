@@ -18,16 +18,16 @@
 public type Error distinct error<ErrorDetails>;
 
 # Represents an error that occurs during XLSX parsing.
-public type ParseError distinct error<ErrorDetails>;
+public type ParseError distinct Error;
+
+# Represents an error when the specified file cannot be found or accessed.
+public type FileNotFoundError distinct Error;
 
 # Represents an error when a requested sheet is not found.
-public type SheetNotFoundError distinct error<ErrorDetails>;
+public type SheetNotFoundError distinct Error;
 
 # Represents an error during type conversion.
-public type TypeConversionError distinct error<ErrorDetails>;
-
-# Represents an error when resource limits are exceeded.
-public type ResourceLimitError distinct error<ErrorDetails>;
+public type TypeConversionError distinct Error;
 
 # Details for XLSX errors.
 #

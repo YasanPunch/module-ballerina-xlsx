@@ -18,6 +18,8 @@ import ballerina/jballerina.java;
 
 # Initialize the module.
 # This function is called when the module is loaded.
+#
+# + return - Error if module initialization fails
 function init() returns error? {
     setModule();
 }

@@ -29,8 +29,8 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 
 /**
@@ -48,20 +48,19 @@ public final class WorkbookHandle {
     }
 
     /**
-     * Open a workbook from bytes.
+     * Open a workbook directly from a file path.
      *
      * @param workbookObj Ballerina Workbook object
-     * @param data        XLSX file bytes
+     * @param filePath    Path to the XLSX file
      * @return null on success, error on failure
      */
-    public static Object openWorkbook(BObject workbookObj, BArray data) {
-        try {
-            ByteArrayInputStream bis = new ByteArrayInputStream(data.getBytes());
-            Workbook workbook = WorkbookFactory.create(bis);
+    public static Object openWorkbookFromPath(BObject workbookObj, BString filePath) {
+        try (FileInputStream fis = new FileInputStream(filePath.getValue())) {
+            Workbook workbook = WorkbookFactory.create(fis);
             workbookObj.addNativeData(WORKBOOK_NATIVE_KEY, workbook);
             return null;
         } catch (IOException e) {
-            return DiagnosticLog.parseError("Failed to open workbook: " + e.getMessage());
+            return DiagnosticLog.fileNotFoundError("Failed to open workbook: " + filePath.getValue(), e);
         } catch (Exception e) {
             return DiagnosticLog.error("Error opening workbook: " + e.getMessage(), e);
         }
@@ -183,20 +182,20 @@ public final class WorkbookHandle {
     }
 
     /**
-     * Convert workbook to bytes.
+     * Save workbook directly to a file.
      *
      * @param workbookObj Ballerina Workbook object
-     * @return XLSX bytes, or error
+     * @param filePath    Path to save the file
+     * @return null on success, error on failure
      */
-    public static Object toBytes(BObject workbookObj) {
+    public static Object save(BObject workbookObj, BString filePath) {
         Workbook workbook = getWorkbook(workbookObj);
 
-        try {
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            workbook.write(bos);
-            return ValueCreator.createArrayValue(bos.toByteArray());
+        try (FileOutputStream fos = new FileOutputStream(filePath.getValue())) {
+            workbook.write(fos);
+            return null;
         } catch (IOException e) {
-            return DiagnosticLog.error("Failed to convert workbook to bytes: " + e.getMessage(), e);
+            return DiagnosticLog.error("Failed to save workbook: " + e.getMessage(), e);
         }
     }
 

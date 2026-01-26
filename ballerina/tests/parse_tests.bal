@@ -14,7 +14,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import ballerina/io;
 import ballerina/test;
 
 const string TEST_DATA_DIR = "tests/resources/testdata/";
@@ -29,9 +28,8 @@ type Employee record {|
 @test:Config {
     groups: ["parse"]
 }
-function testParseBytesToStringArray() returns error? {
-    byte[] xlsxData = check io:fileReadBytes(TEST_DATA_DIR + "simple.xlsx");
-    string[][] rows = check parseBytes(xlsxData);
+function testParseToStringArray() returns error? {
+    string[][] rows = check parse(TEST_DATA_DIR + "simple.xlsx");
 
     test:assertTrue(rows.length() > 0, "Should have at least one row");
     test:assertTrue(rows[0].length() > 0, "First row should have columns");
@@ -40,9 +38,8 @@ function testParseBytesToStringArray() returns error? {
 @test:Config {
     groups: ["parse"]
 }
-function testParseBytesToRecords() returns error? {
-    byte[] xlsxData = check io:fileReadBytes(TEST_DATA_DIR + "employees.xlsx");
-    Employee[] employees = check parseBytes(xlsxData);
+function testParseToRecords() returns error? {
+    Employee[] employees = check parse(TEST_DATA_DIR + "employees.xlsx");
 
     test:assertTrue(employees.length() > 0, "Should have at least one employee");
     test:assertEquals(employees[0].name, "John Doe", "First employee name should match");
@@ -52,12 +49,11 @@ function testParseBytesToRecords() returns error? {
     groups: ["parse"]
 }
 function testParseWithHeaderRowOption() returns error? {
-    byte[] xlsxData = check io:fileReadBytes(TEST_DATA_DIR + "complex_headers.xlsx");
     ParseOptions opts = {
         headerRow: 2,  // Skip logo/title rows
         dataStartRow: 3
     };
-    string[][] rows = check parseBytes(xlsxData, opts);
+    string[][] rows = check parse(TEST_DATA_DIR + "complex_headers.xlsx", 0, opts);
 
     test:assertTrue(rows.length() > 0, "Should have data rows");
 }
@@ -66,11 +62,8 @@ function testParseWithHeaderRowOption() returns error? {
     groups: ["parse"]
 }
 function testParseWithSheetSelection() returns error? {
-    byte[] xlsxData = check io:fileReadBytes(TEST_DATA_DIR + "multi_sheet.xlsx");
-    ParseOptions opts = {
-        sheetName: "Sheet2"
-    };
-    string[][] rows = check parseBytes(xlsxData, opts);
+    // Sheet selection is now a direct parameter (string for name)
+    string[][] rows = check parse(TEST_DATA_DIR + "multi_sheet.xlsx", "Sheet2");
 
     test:assertTrue(rows.length() > 0, "Should have data from Sheet2");
 }
@@ -79,11 +72,8 @@ function testParseWithSheetSelection() returns error? {
     groups: ["parse"]
 }
 function testParseWithSheetIndex() returns error? {
-    byte[] xlsxData = check io:fileReadBytes(TEST_DATA_DIR + "multi_sheet.xlsx");
-    ParseOptions opts = {
-        sheetIndex: 1  // Second sheet (0-based)
-    };
-    string[][] rows = check parseBytes(xlsxData, opts);
+    // Sheet selection is now a direct parameter (int for index, 0-based)
+    string[][] rows = check parse(TEST_DATA_DIR + "multi_sheet.xlsx", 1);
 
     test:assertTrue(rows.length() > 0, "Should have data from second sheet");
 }
@@ -92,11 +82,8 @@ function testParseWithSheetIndex() returns error? {
     groups: ["parse", "negative"]
 }
 function testParseSheetNotFound() returns error? {
-    byte[] xlsxData = check io:fileReadBytes(TEST_DATA_DIR + "simple.xlsx");
-    ParseOptions opts = {
-        sheetName: "NonExistentSheet"
-    };
-    string[][]|Error result = parseBytes(xlsxData, opts);
+    // Sheet selection is now a direct parameter
+    string[][]|Error result = parse(TEST_DATA_DIR + "simple.xlsx", "NonExistentSheet");
 
     test:assertTrue(result is Error, "Should return error for non-existent sheet");
 }
@@ -105,11 +92,10 @@ function testParseSheetNotFound() returns error? {
     groups: ["parse"]
 }
 function testParseFormulaCachedMode() returns error? {
-    byte[] xlsxData = check io:fileReadBytes(TEST_DATA_DIR + "formulas.xlsx");
     ParseOptions opts = {
         formulaMode: CACHED
     };
-    string[][] rows = check parseBytes(xlsxData, opts);
+    string[][] rows = check parse(TEST_DATA_DIR + "formulas.xlsx", 0, opts);
 
     // In CACHED mode, formula cells should return calculated values
     test:assertTrue(rows.length() > 0, "Should have rows");
@@ -119,11 +105,10 @@ function testParseFormulaCachedMode() returns error? {
     groups: ["parse"]
 }
 function testParseFormulaTextMode() returns error? {
-    byte[] xlsxData = check io:fileReadBytes(TEST_DATA_DIR + "formulas.xlsx");
     ParseOptions opts = {
         formulaMode: TEXT
     };
-    string[][] rows = check parseBytes(xlsxData, opts);
+    string[][] rows = check parse(TEST_DATA_DIR + "formulas.xlsx", 0, opts);
 
     // In TEXT mode, formula cells should return formula string
     test:assertTrue(rows.length() > 0, "Should have rows");

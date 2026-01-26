@@ -14,6 +14,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+import ballerina/file;
 import ballerina/test;
 
 // Test record type for writing
@@ -33,13 +34,19 @@ function testWriteStringArray() returns error? {
         ["Jane", "25", "Los Angeles"]
     ];
 
-    byte[] xlsxBytes = check toBytes(data);
-    test:assertTrue(xlsxBytes.length() > 0, "Should generate non-empty XLSX bytes");
+    string tempFile = TEST_DATA_DIR + "temp_write_string.xlsx";
+    check write(data, tempFile);
+
+    // Verify file was created
+    test:assertTrue(check file:test(tempFile, file:EXISTS), "File should exist");
 
     // Verify by parsing back
-    string[][] parsed = check parseBytes(xlsxBytes);
+    string[][] parsed = check parse(tempFile);
     test:assertEquals(parsed.length(), 3, "Should have 3 rows");
     test:assertEquals(parsed[0][0], "Name", "First cell should be 'Name'");
+
+    // Cleanup
+    check file:remove(tempFile);
 }
 
 @test:Config {
@@ -51,12 +58,18 @@ function testWriteRecords() returns error? {
         {name: "Bob", age: 35, active: false}
     ];
 
-    byte[] xlsxBytes = check toBytes(people);
-    test:assertTrue(xlsxBytes.length() > 0, "Should generate non-empty XLSX bytes");
+    string tempFile = TEST_DATA_DIR + "temp_write_records.xlsx";
+    check write(people, tempFile);
+
+    // Verify file was created
+    test:assertTrue(check file:test(tempFile, file:EXISTS), "File should exist");
 
     // Verify by parsing back as string array (to check headers)
-    string[][] parsed = check parseBytes(xlsxBytes);
+    string[][] parsed = check parse(tempFile);
     test:assertTrue(parsed.length() >= 2, "Should have header + data rows");
+
+    // Cleanup
+    check file:remove(tempFile);
 }
 
 @test:Config {
@@ -67,16 +80,15 @@ function testWriteWithoutHeaders() returns error? {
         {name: "Alice", age: 28, active: true}
     ];
 
-    WriteOptions opts = {
-        writeHeaders: false
-    };
-
-    byte[] xlsxBytes = check toBytes(people, opts);
-    test:assertTrue(xlsxBytes.length() > 0, "Should generate non-empty XLSX bytes");
+    string tempFile = TEST_DATA_DIR + "temp_write_no_headers.xlsx";
+    check write(people, tempFile, writeHeaders = false);
 
     // Parse back - should only have data row, no headers
-    string[][] parsed = check parseBytes(xlsxBytes);
+    string[][] parsed = check parse(tempFile);
     test:assertEquals(parsed.length(), 1, "Should have only 1 row (no headers)");
+
+    // Cleanup
+    check file:remove(tempFile);
 }
 
 @test:Config {
@@ -85,17 +97,17 @@ function testWriteWithoutHeaders() returns error? {
 function testWriteWithCustomSheetName() returns error? {
     string[][] data = [["Data"]];
 
-    WriteOptions opts = {
-        sheetName: "MyCustomSheet"
-    };
-
-    byte[] xlsxBytes = check toBytes(data, opts);
+    string tempFile = TEST_DATA_DIR + "temp_write_sheet_name.xlsx";
+    check write(data, tempFile, sheetName = "MyCustomSheet");
 
     // Verify by opening as workbook and checking sheet name
-    Workbook wb = check openWorkbook(xlsxBytes);
+    Workbook wb = check openWorkbook(tempFile);
     string[] sheetNames = wb.getSheetNames();
     test:assertEquals(sheetNames[0], "MyCustomSheet", "Sheet name should match");
     check wb.close();
+
+    // Cleanup
+    check file:remove(tempFile);
 }
 
 @test:Config {
@@ -110,15 +122,20 @@ function testRoundTrip() returns error? {
         ["Charlie", "92"]
     ];
 
+    string tempFile = TEST_DATA_DIR + "temp_roundtrip.xlsx";
+
     // Write to XLSX
-    byte[] xlsxBytes = check toBytes(original);
+    check write(original, tempFile);
 
     // Read back
-    string[][] parsed = check parseBytes(xlsxBytes);
+    string[][] parsed = check parse(tempFile);
 
     // Verify
     test:assertEquals(parsed.length(), original.length(), "Row count should match");
     test:assertEquals(parsed[0].length(), original[0].length(), "Column count should match");
     test:assertEquals(parsed[1][0], "Alice", "Data should match");
     test:assertEquals(parsed[1][1], "95", "Data should match");
+
+    // Cleanup
+    check file:remove(tempFile);
 }

@@ -29,6 +29,7 @@ import io.ballerina.runtime.api.types.Field;
 import io.ballerina.runtime.api.types.RecordType;
 import io.ballerina.runtime.api.types.Type;
 import io.ballerina.runtime.api.utils.StringUtils;
+import io.ballerina.runtime.api.utils.TypeUtils;
 import io.ballerina.runtime.api.values.BArray;
 import io.ballerina.runtime.api.values.BMap;
 import io.ballerina.runtime.api.values.BObject;
@@ -134,7 +135,9 @@ public final class SheetHandle {
             if (typeTag == TypeTags.ARRAY_TAG) {
                 ArrayType arrayType = (ArrayType) describingType;
                 Type elementType = arrayType.getElementType();
-                int elementTag = elementType.getTag();
+                // Resolve referenced types (important for module-defined types)
+                Type resolvedElementType = TypeUtils.getReferredType(elementType);
+                int elementTag = resolvedElementType.getTag();
 
                 // string[][]
                 if (elementTag == TypeTags.ARRAY_TAG) {
@@ -143,7 +146,7 @@ public final class SheetHandle {
 
                 // record[]
                 if (elementTag == TypeTags.RECORD_TYPE_TAG) {
-                    return getRowsAsRecords(sheet, config, (RecordType) elementType);
+                    return getRowsAsRecords(sheet, config, (RecordType) resolvedElementType);
                 }
             }
 
@@ -153,6 +156,132 @@ public final class SheetHandle {
         } catch (Exception e) {
             return DiagnosticLog.error("Error getting rows: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Get a single row from the sheet by index.
+     *
+     * @param sheetObj   Ballerina Sheet object
+     * @param index      Row index (0-based, relative to data start row)
+     * @param options    Read options
+     * @param targetType Target type descriptor
+     * @return Single row (string[] or record{})
+     */
+    public static Object getRow(BObject sheetObj, long index, BMap<BString, Object> options, BTypedesc targetType) {
+        Sheet sheet = getSheet(sheetObj);
+        XlsxConfig config = XlsxConfig.fromParseOptions(options);
+
+        try {
+            CellRangeAddress usedRange = UsedRangeDetector.detectUsedRange(sheet);
+
+            if (usedRange == null) {
+                return DiagnosticLog.error("Sheet is empty, cannot get row at index " + index);
+            }
+
+            int dataStartRow = config.getDataStartRow();
+            int actualRowIndex = dataStartRow + (int) index;
+            int endRow = usedRange.getLastRow();
+
+            if (actualRowIndex < dataStartRow || actualRowIndex > endRow) {
+                return DiagnosticLog.error("Row index " + index + " out of range (0-" +
+                        (endRow - dataStartRow) + ")");
+            }
+
+            Row row = sheet.getRow(actualRowIndex);
+
+            Type describingType = targetType.getDescribingType();
+            // Resolve referenced types (important for module-defined types)
+            Type resolvedType = TypeUtils.getReferredType(describingType);
+            int typeTag = resolvedType.getTag();
+
+            // string[] - single row as string array
+            if (typeTag == TypeTags.ARRAY_TAG) {
+                ArrayType arrayType = (ArrayType) resolvedType;
+                Type elementType = TypeUtils.getReferredType(arrayType.getElementType());
+                if (elementType.getTag() == TypeTags.STRING_TAG) {
+                    return getRowAsStringArray(row, usedRange, config);
+                }
+            }
+
+            // record{} - single row as record
+            if (typeTag == TypeTags.RECORD_TYPE_TAG) {
+                return getRowAsRecord(sheet, row, usedRange, config, (RecordType) resolvedType);
+            }
+
+            // Default: string[]
+            return getRowAsStringArray(row, usedRange, config);
+
+        } catch (Exception e) {
+            return DiagnosticLog.error("Error getting row: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Get a single row as string[].
+     */
+    private static BArray getRowAsStringArray(Row row, CellRangeAddress usedRange, XlsxConfig config) {
+        ArrayType stringType = TypeCreator.createArrayType(io.ballerina.runtime.api.types.PredefinedTypes.TYPE_STRING);
+        BArray rowArray = ValueCreator.createArrayValue(stringType);
+
+        int startCol = usedRange.getFirstColumn();
+        int endCol = usedRange.getLastColumn();
+
+        for (int colIdx = startCol; colIdx <= endCol; colIdx++) {
+            Cell cell = row != null ? row.getCell(colIdx) : null;
+            String value = CellConverter.convertToString(cell, config);
+            rowArray.append(StringUtils.fromString(value));
+        }
+
+        return rowArray;
+    }
+
+    /**
+     * Get a single row as record.
+     */
+    private static BMap<BString, Object> getRowAsRecord(Sheet sheet, Row row, CellRangeAddress usedRange,
+                                                         XlsxConfig config, RecordType recordType) {
+        // Get header row
+        int headerRowIndex = config.getHeaderRow();
+        Row headerRow = sheet.getRow(headerRowIndex);
+
+        if (headerRow == null) {
+            throw new RuntimeException("Header row " + headerRowIndex + " is empty");
+        }
+
+        // Build header-to-column mapping
+        Map<String, Integer> headerMap = buildHeaderMap(headerRow, usedRange);
+
+        // Get field mappings
+        Map<String, Field> fields = recordType.getFields();
+        Map<Integer, FieldMapping> columnToField = new HashMap<>();
+
+        for (Map.Entry<String, Field> entry : fields.entrySet()) {
+            String fieldName = entry.getKey();
+            Field field = entry.getValue();
+            String headerName = fieldName;
+
+            Integer colIndex = headerMap.get(headerName);
+            if (colIndex != null) {
+                columnToField.put(colIndex, new FieldMapping(fieldName, field.getFieldType()));
+            }
+        }
+
+        // Create record from row
+        BMap<BString, Object> record = ValueCreator.createRecordValue(recordType);
+
+        for (Map.Entry<Integer, FieldMapping> entry : columnToField.entrySet()) {
+            int colIdx = entry.getKey();
+            FieldMapping mapping = entry.getValue();
+
+            Cell cell = row != null ? row.getCell(colIdx) : null;
+            Object value = CellConverter.convert(cell, mapping.type, config);
+
+            if (value != null) {
+                record.put(StringUtils.fromString(mapping.fieldName), value);
+            }
+        }
+
+        return record;
     }
 
     /**

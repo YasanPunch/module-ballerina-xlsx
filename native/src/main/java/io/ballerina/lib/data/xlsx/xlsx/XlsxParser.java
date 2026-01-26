@@ -31,6 +31,7 @@ import io.ballerina.runtime.api.types.RecordType;
 import io.ballerina.runtime.api.types.Type;
 import io.ballerina.runtime.api.types.UnionType;
 import io.ballerina.runtime.api.utils.StringUtils;
+import io.ballerina.runtime.api.utils.TypeUtils;
 import io.ballerina.runtime.api.values.BArray;
 import io.ballerina.runtime.api.values.BMap;
 import io.ballerina.runtime.api.values.BString;
@@ -65,18 +66,20 @@ public final class XlsxParser {
      * Parse XLSX bytes to Ballerina value based on target type.
      *
      * @param data       XLSX file bytes
+     * @param sheet      Sheet to read (BString for name, Long for index)
      * @param options    Parse options
      * @param targetType Target Ballerina type descriptor
      * @return Parsed value (array of records or array of arrays)
      */
-    public static Object parseBytes(byte[] data, BMap<BString, Object> options, BTypedesc targetType) {
+    public static Object parseBytes(byte[] data, Object sheet, BMap<BString, Object> options,
+                                    BTypedesc targetType) {
         XlsxConfig config = XlsxConfig.fromParseOptions(options);
 
         try (ByteArrayInputStream bis = new ByteArrayInputStream(data);
              Workbook workbook = WorkbookFactory.create(bis)) {
 
-            Sheet sheet = selectSheet(workbook, config);
-            return parseSheet(sheet, config, targetType);
+            Sheet selectedSheet = selectSheet(workbook, sheet);
+            return parseSheet(selectedSheet, config, targetType);
 
         } catch (IOException e) {
             return DiagnosticLog.parseError("Failed to parse XLSX: " + e.getMessage());
@@ -89,16 +92,18 @@ public final class XlsxParser {
      * Parse XLSX from input stream.
      *
      * @param stream     Input stream containing XLSX data
+     * @param sheet      Sheet to read (BString for name, Long for index)
      * @param options    Parse options
      * @param targetType Target Ballerina type descriptor
      * @return Parsed value
      */
-    public static Object parseStream(InputStream stream, BMap<BString, Object> options, BTypedesc targetType) {
+    public static Object parseStream(InputStream stream, Object sheet, BMap<BString, Object> options,
+                                     BTypedesc targetType) {
         XlsxConfig config = XlsxConfig.fromParseOptions(options);
 
         try (Workbook workbook = WorkbookFactory.create(stream)) {
-            Sheet sheet = selectSheet(workbook, config);
-            return parseSheet(sheet, config, targetType);
+            Sheet selectedSheet = selectSheet(workbook, sheet);
+            return parseSheet(selectedSheet, config, targetType);
         } catch (IOException e) {
             return DiagnosticLog.parseError("Failed to parse XLSX stream: " + e.getMessage());
         } catch (Exception e) {
@@ -107,29 +112,34 @@ public final class XlsxParser {
     }
 
     /**
-     * Select sheet from workbook based on config.
+     * Select sheet from workbook based on sheet identifier.
+     *
+     * @param workbook The workbook to select from
+     * @param sheet    Sheet identifier (BString for name, Long for index)
+     * @return Selected sheet
      */
-    private static Sheet selectSheet(Workbook workbook, XlsxConfig config) {
-        Sheet sheet;
+    private static Sheet selectSheet(Workbook workbook, Object sheet) {
+        Sheet selectedSheet;
 
-        if (config.getSheetName() != null) {
-            sheet = workbook.getSheet(config.getSheetName());
-            if (sheet == null) {
-                throw new RuntimeException(DiagnosticLog.sheetNotFoundError(config.getSheetName()).getMessage());
+        if (sheet instanceof BString) {
+            String sheetName = ((BString) sheet).getValue();
+            selectedSheet = workbook.getSheet(sheetName);
+            if (selectedSheet == null) {
+                throw new RuntimeException(DiagnosticLog.sheetNotFoundError(sheetName).getMessage());
             }
-        } else if (config.getSheetIndex() != null) {
-            int index = config.getSheetIndex();
+        } else if (sheet instanceof Long) {
+            int index = ((Long) sheet).intValue();
             if (index < 0 || index >= workbook.getNumberOfSheets()) {
                 throw new RuntimeException("Sheet index " + index + " out of range (0-" +
                         (workbook.getNumberOfSheets() - 1) + ")");
             }
-            sheet = workbook.getSheetAt(index);
+            selectedSheet = workbook.getSheetAt(index);
         } else {
             // Default: first sheet
-            sheet = workbook.getSheetAt(0);
+            selectedSheet = workbook.getSheetAt(0);
         }
 
-        return sheet;
+        return selectedSheet;
     }
 
     /**
@@ -143,24 +153,28 @@ public final class XlsxParser {
         if (typeTag == TypeTags.ARRAY_TAG) {
             ArrayType arrayType = (ArrayType) describingType;
             Type elementType = arrayType.getElementType();
-            int elementTag = elementType.getTag();
+
+            // Resolve referenced types (important for module-defined types like `type X record {...}`)
+            Type resolvedElementType = TypeUtils.getReferredType(elementType);
+            int elementTag = resolvedElementType.getTag();
 
             // string[][] - raw string array
             if (elementTag == TypeTags.ARRAY_TAG) {
-                ArrayType innerArrayType = (ArrayType) elementType;
-                if (innerArrayType.getElementType().getTag() == TypeTags.STRING_TAG) {
+                ArrayType innerArrayType = (ArrayType) resolvedElementType;
+                Type innerElementType = TypeUtils.getReferredType(innerArrayType.getElementType());
+                if (innerElementType.getTag() == TypeTags.STRING_TAG) {
                     return parseToStringArray(sheet, config);
                 }
             }
 
             // record{}[] - array of records
             if (elementTag == TypeTags.RECORD_TYPE_TAG) {
-                return parseToRecordArray(sheet, config, (RecordType) elementType);
+                return parseToRecordArray(sheet, config, (RecordType) resolvedElementType);
             }
 
             // map<anydata>[] - array of maps
             if (elementTag == TypeTags.MAP_TAG) {
-                return parseToMapArray(sheet, config, (MapType) elementType);
+                return parseToMapArray(sheet, config, (MapType) resolvedElementType);
             }
         }
 

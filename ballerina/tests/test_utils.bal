@@ -15,7 +15,6 @@
 // under the License.
 
 import ballerina/file;
-import ballerina/io;
 import ballerina/test;
 
 // Setup test data files before running tests
@@ -28,8 +27,7 @@ function setupTestData() returns error? {
         ["Jane", "25", "Los Angeles"],
         ["Bob", "35", "Chicago"]
     ];
-    byte[] simpleXlsx = check toBytes(simpleData);
-    check io:fileWriteBytes(TEST_DATA_DIR + "simple.xlsx", simpleXlsx);
+    check write(simpleData, TEST_DATA_DIR + "simple.xlsx");
 
     // Create employees.xlsx with proper headers matching Employee record
     string[][] employeeData = [
@@ -38,8 +36,7 @@ function setupTestData() returns error? {
         ["Jane Smith", "28", "Marketing"],
         ["Bob Johnson", "35", "Sales"]
     ];
-    byte[] employeeXlsx = check toBytes(employeeData);
-    check io:fileWriteBytes(TEST_DATA_DIR + "employees.xlsx", employeeXlsx);
+    check write(employeeData, TEST_DATA_DIR + "employees.xlsx");
 
     // Create multi_sheet.xlsx using Workbook API
     Workbook wb = check openWorkbook();
@@ -56,8 +53,7 @@ function setupTestData() returns error? {
     string[][] sheet3Data = [["P1", "Q1"], ["P2", "Q2"]];
     check sheet3.putRows(sheet3Data);
 
-    byte[] multiSheetXlsx = check wb.toBytes();
-    check io:fileWriteBytes(TEST_DATA_DIR + "multi_sheet.xlsx", multiSheetXlsx);
+    check wb.save(TEST_DATA_DIR + "multi_sheet.xlsx");
     check wb.close();
 
     // Create complex_headers.xlsx (with title/logo rows before actual headers)
@@ -68,19 +64,17 @@ function setupTestData() returns error? {
         ["Item1", "100", "Active"],           // Row 3: Data
         ["Item2", "200", "Inactive"]          // Row 4: Data
     ];
-    byte[] complexXlsx = check toBytes(complexHeaderData);
-    check io:fileWriteBytes(TEST_DATA_DIR + "complex_headers.xlsx", complexXlsx);
+    check write(complexHeaderData, TEST_DATA_DIR + "complex_headers.xlsx");
 
     // Create formulas.xlsx
-    // Note: Since we're creating with toBytes which uses POI, we can create cells with formulas
+    // Note: Since we're creating with write which uses POI, we can create cells with formulas
     // For now, we'll create a simple file - formula testing will need native file
     string[][] formulaData = [
         ["A", "B", "Sum"],
         ["10", "20", "=A2+B2"],
         ["15", "25", "=A3+B3"]
     ];
-    byte[] formulaXlsx = check toBytes(formulaData);
-    check io:fileWriteBytes(TEST_DATA_DIR + "formulas.xlsx", formulaXlsx);
+    check write(formulaData, TEST_DATA_DIR + "formulas.xlsx");
 }
 
 // Cleanup test data files after running tests

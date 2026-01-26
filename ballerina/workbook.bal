@@ -19,15 +19,15 @@ import ballerina/jballerina.java;
 # Represents an Excel workbook.
 #
 # A workbook contains one or more sheets and provides methods to
-# access sheets, create new sheets, and export to bytes.
+# access sheets, create new sheets, and save to files.
 public isolated class Workbook {
 
-    # Initialize workbook from XLSX bytes.
+    # Initialize workbook from a file path.
     #
-    # + data - XLSX file bytes
-    # + return - Error if parsing fails
-    isolated function initFromBytes(byte[] data) returns Error? = @java:Method {
-        name: "openWorkbook",
+    # + path - Path to the XLSX file
+    # + return - Error if file not found or parsing fails
+    isolated function initFromPath(string path) returns Error? = @java:Method {
+        name: "openWorkbookFromPath",
         'class: "io.ballerina.lib.data.xlsx.xlsx.WorkbookHandle"
     } external;
 
@@ -111,15 +111,15 @@ public isolated class Workbook {
         'class: "io.ballerina.lib.data.xlsx.xlsx.WorkbookHandle"
     } external;
 
-    # Convert the workbook to XLSX bytes.
+    # Save the workbook to a file.
     #
     # ```ballerina
-    # byte[] xlsxBytes = check workbook.toBytes();
-    # check io:fileWriteBytes("output.xlsx", xlsxBytes);
+    # check workbook.save("output.xlsx");
     # ```
     #
-    # + return - XLSX file bytes or Error
-    public isolated function toBytes() returns byte[]|Error = @java:Method {
+    # + path - Path to save the XLSX file
+    # + return - Error if save fails
+    public isolated function save(string path) returns Error? = @java:Method {
         'class: "io.ballerina.lib.data.xlsx.xlsx.WorkbookHandle"
     } external;
 

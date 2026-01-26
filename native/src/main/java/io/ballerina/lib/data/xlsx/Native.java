@@ -28,6 +28,11 @@ import io.ballerina.runtime.api.values.BStream;
 import io.ballerina.runtime.api.values.BString;
 import io.ballerina.runtime.api.values.BTypedesc;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 /**
  * Native entry point for Ballerina XLSX module.
  * This class provides the bridge between Ballerina and Java for Excel operations.
@@ -41,42 +46,52 @@ public final class Native {
     }
 
     /**
-     * Parse XLSX bytes into a Ballerina array.
+     * Parse XLSX file from a file path into a Ballerina array.
+     * This is the PRIMARY API for parsing XLSX files.
      *
-     * @param xlsxBytes The XLSX file content as a byte array
+     * @param filePath  Path to the XLSX file
+     * @param sheet     Sheet to read (string name or int index)
      * @param options   Parsing options
      * @param typedesc  Target type descriptor
      * @return Parsed data as BArray or error
      */
-    public static Object parseBytes(BArray xlsxBytes, BMap<BString, Object> options, BTypedesc typedesc) {
-        byte[] bytes = xlsxBytes.getBytes();
-        return XlsxParser.parseBytes(bytes, options, typedesc);
+    public static Object parse(BString filePath, Object sheet, BMap<BString, Object> options, BTypedesc typedesc) {
+        try {
+            Path path = Paths.get(filePath.getValue());
+            byte[] bytes = Files.readAllBytes(path);
+            return XlsxParser.parseBytes(bytes, sheet, options, typedesc);
+        } catch (IOException e) {
+            return DiagnosticLog.fileNotFoundError("Failed to read file: " + filePath.getValue(), e);
+        }
+    }
+
+    /**
+     * Write Ballerina data directly to an XLSX file.
+     * This is the PRIMARY API for writing XLSX files.
+     *
+     * @param data     Data to write (record[] or string[][])
+     * @param filePath Path to the output file
+     * @param options  Write options
+     * @return null on success, error on failure
+     */
+    public static Object write(BArray data, BString filePath, BMap<BString, Object> options) {
+        return XlsxWriter.writeToFile(filePath.getValue(), data, options);
     }
 
     /**
      * Parse XLSX from a byte stream into a Ballerina array.
-     * Note: Stream support requires async handling - for now, returns error.
+     * Note: Deferred to v2 - XLSX format requires SharedStringsTable, making true streaming complex.
      *
      * @param env        Ballerina environment
      * @param xlsxStream The XLSX content as a byte stream
+     * @param sheet      Sheet to read (string name or int index)
      * @param options    Parsing options
      * @param typedesc   Target type descriptor
      * @return Parsed data as BArray or error
      */
-    public static Object parseStream(Environment env, BStream xlsxStream,
-                                     BMap<BString, Object> options, BTypedesc typedesc) {
-        // TODO: Implement proper async stream handling
-        return DiagnosticLog.error("parseStream is not yet implemented. Use parseBytes instead.");
-    }
-
-    /**
-     * Convert Ballerina data to XLSX bytes.
-     *
-     * @param data    Data to write (record[] or string[][])
-     * @param options Write options
-     * @return XLSX bytes as byte[] or error
-     */
-    public static Object toBytes(BArray data, BMap<BString, Object> options) {
-        return XlsxWriter.toBytes(data, options);
+    public static Object parseAsStream(Environment env, BStream xlsxStream, Object sheet,
+                                       BMap<BString, Object> options, BTypedesc typedesc) {
+        // Deferred to v2: XLSX format requires SharedStringsTable to be loaded first
+        return DiagnosticLog.error("parseAsStream is deferred to v2. Use parse() instead.");
     }
 }

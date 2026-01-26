@@ -29,13 +29,10 @@ import io.ballerina.runtime.api.values.BString;
 public class XlsxConfig {
 
     // Parse options
-    private String sheetName;
-    private Integer sheetIndex;
     private int headerRow = Constants.DEFAULT_HEADER_ROW;
     private Integer dataStartRow;
     private boolean includeEmptyRows = false;
     private String formulaMode = Constants.FORMULA_MODE_CACHED;
-    private String nilValue;
     private boolean enableConstraintValidation = true;
 
     // Write options
@@ -54,17 +51,6 @@ public class XlsxConfig {
 
         if (options == null) {
             return config;
-        }
-
-        // Sheet selection
-        Object sheetNameVal = options.get(Constants.SHEET_NAME);
-        if (sheetNameVal != null) {
-            config.sheetName = sheetNameVal.toString();
-        }
-
-        Object sheetIndexVal = options.get(Constants.SHEET_INDEX);
-        if (sheetIndexVal != null) {
-            config.sheetIndex = ((Long) sheetIndexVal).intValue();
         }
 
         // Header configuration
@@ -88,12 +74,6 @@ public class XlsxConfig {
         Object formulaModeVal = options.get(Constants.FORMULA_MODE);
         if (formulaModeVal != null) {
             config.formulaMode = formulaModeVal.toString();
-        }
-
-        // Nil value
-        Object nilValueVal = options.get(Constants.NIL_VALUE);
-        if (nilValueVal != null) {
-            config.nilValue = nilValueVal.toString();
         }
 
         // Constraint validation
@@ -138,14 +118,6 @@ public class XlsxConfig {
 
     // Getters
 
-    public String getSheetName() {
-        return sheetName;
-    }
-
-    public Integer getSheetIndex() {
-        return sheetIndex;
-    }
-
     public int getHeaderRow() {
         return headerRow;
     }
@@ -169,10 +141,6 @@ public class XlsxConfig {
 
     public boolean isFormulaModeText() {
         return Constants.FORMULA_MODE_TEXT.equals(formulaMode);
-    }
-
-    public String getNilValue() {
-        return nilValue;
     }
 
     public boolean isEnableConstraintValidation() {
