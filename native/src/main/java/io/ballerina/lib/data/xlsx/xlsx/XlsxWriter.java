@@ -18,6 +18,7 @@
 
 package io.ballerina.lib.data.xlsx.xlsx;
 
+import io.ballerina.lib.data.xlsx.utils.AnnotationUtils;
 import io.ballerina.lib.data.xlsx.utils.DiagnosticLog;
 import io.ballerina.lib.data.xlsx.utils.XlsxConfig;
 import io.ballerina.runtime.api.types.TypeTags;
@@ -25,6 +26,7 @@ import io.ballerina.runtime.api.types.ArrayType;
 import io.ballerina.runtime.api.types.Field;
 import io.ballerina.runtime.api.types.RecordType;
 import io.ballerina.runtime.api.types.Type;
+import io.ballerina.runtime.api.utils.StringUtils;
 import io.ballerina.runtime.api.utils.TypeUtils;
 import io.ballerina.runtime.api.values.BArray;
 import io.ballerina.runtime.api.values.BMap;
@@ -124,18 +126,24 @@ public final class XlsxWriter {
             return;
         }
 
-        // Get field names for headers
+        // Get field names for data access
         Map<String, Field> fields = recordType.getFields();
         List<String> fieldNames = new ArrayList<>(fields.keySet());
+
+        // Build header names using @xlsx:Name annotations where present
+        List<String> headerNames = new ArrayList<>();
+        for (String fieldName : fieldNames) {
+            headerNames.add(AnnotationUtils.getHeaderName(recordType, fieldName));
+        }
 
         int currentRow = startRow;
 
         // Write headers if configured
         if (config.isWriteHeaders()) {
             Row headerRow = sheet.createRow(currentRow++);
-            for (int i = 0; i < fieldNames.size(); i++) {
+            for (int i = 0; i < headerNames.size(); i++) {
                 Cell cell = headerRow.createCell(i);
-                cell.setCellValue(fieldNames.get(i));
+                cell.setCellValue(headerNames.get(i));
             }
         }
 
@@ -236,4 +244,5 @@ public final class XlsxWriter {
             return DiagnosticLog.error("Error writing to sheet: " + e.getMessage(), e);
         }
     }
+
 }

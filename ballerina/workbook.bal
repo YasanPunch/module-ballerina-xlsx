@@ -20,10 +20,37 @@ import ballerina/jballerina.java;
 #
 # A workbook contains one or more sheets and provides methods to
 # access sheets, create new sheets, and save to files.
-public isolated class Workbook {
+#
+# ```ballerina
+# // Open existing workbook
+# xlsx:Workbook wb = check new("report.xlsx");
+#
+# // Create new empty workbook
+# xlsx:Workbook wb = check new();
+#
+# // Work with sheets
+# string[] sheets = wb.getSheetNames();
+# xlsx:Sheet sheet = check wb.getSheet("Sales");
+#
+# // Save and close
+# check wb.save("updated.xlsx");
+# check wb.close();
+# ```
+public class Workbook {
+
+    # Initialize a workbook.
+    #
+    # + path - Path to XLSX file, or nil to create new empty workbook
+    # + return - Error if file not found or initialization fails
+    public isolated function init(string? path = ()) returns Error? {
+        if path is string {
+            check self.initFromPath(path);
+        } else {
+            check self.initNew();
+        }
+    }
 
     # Initialize workbook from a file path.
-    #
     # + path - Path to the XLSX file
     # + return - Error if file not found or parsing fails
     isolated function initFromPath(string path) returns Error? = @java:Method {
@@ -79,14 +106,14 @@ public isolated class Workbook {
     # ```
     #
     # + index - Sheet index (0-based)
-    # + return - Sheet instance or Error if index out of range
-    public isolated function getSheetByIndex(int index) returns Sheet|Error {
+    # + return - Sheet instance or SheetNotFoundError if index out of range
+    public isolated function getSheetByIndex(int index) returns Sheet|SheetNotFoundError {
         Sheet sheet = new;
         check self.getSheetByIndexNative(sheet, index);
         return sheet;
     }
 
-    isolated function getSheetByIndexNative(Sheet sheet, int index) returns Error? = @java:Method {
+    isolated function getSheetByIndexNative(Sheet sheet, int index) returns SheetNotFoundError? = @java:Method {
         name: "getSheetByIndex",
         'class: "io.ballerina.lib.data.xlsx.xlsx.WorkbookHandle"
     } external;

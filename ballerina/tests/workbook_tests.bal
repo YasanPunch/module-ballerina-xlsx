@@ -21,7 +21,7 @@ import ballerina/test;
     groups: ["workbook"]
 }
 function testOpenWorkbook() returns error? {
-    Workbook wb = check openWorkbook(TEST_DATA_DIR + "multi_sheet.xlsx");
+    Workbook wb = check new Workbook(TEST_DATA_DIR + "multi_sheet.xlsx");
 
     test:assertTrue(wb.getSheetCount() > 0, "Should have at least one sheet");
     check wb.close();
@@ -31,7 +31,7 @@ function testOpenWorkbook() returns error? {
     groups: ["workbook"]
 }
 function testGetSheetNames() returns error? {
-    Workbook wb = check openWorkbook(TEST_DATA_DIR + "multi_sheet.xlsx");
+    Workbook wb = check new Workbook(TEST_DATA_DIR + "multi_sheet.xlsx");
 
     string[] names = wb.getSheetNames();
     test:assertTrue(names.length() > 0, "Should have sheet names");
@@ -42,7 +42,7 @@ function testGetSheetNames() returns error? {
     groups: ["workbook"]
 }
 function testGetSheetByName() returns error? {
-    Workbook wb = check openWorkbook(TEST_DATA_DIR + "multi_sheet.xlsx");
+    Workbook wb = check new Workbook(TEST_DATA_DIR + "multi_sheet.xlsx");
 
     string[] names = wb.getSheetNames();
     Sheet sheet = check wb.getSheet(names[0]);
@@ -54,7 +54,7 @@ function testGetSheetByName() returns error? {
     groups: ["workbook"]
 }
 function testGetSheetByIndex() returns error? {
-    Workbook wb = check openWorkbook(TEST_DATA_DIR + "multi_sheet.xlsx");
+    Workbook wb = check new Workbook(TEST_DATA_DIR + "multi_sheet.xlsx");
 
     Sheet sheet = check wb.getSheetByIndex(0);
     string[] names = wb.getSheetNames();
@@ -66,7 +66,7 @@ function testGetSheetByIndex() returns error? {
     groups: ["workbook", "negative"]
 }
 function testGetSheetNotFound() returns error? {
-    Workbook wb = check openWorkbook(TEST_DATA_DIR + "simple.xlsx");
+    Workbook wb = check new Workbook(TEST_DATA_DIR + "simple.xlsx");
 
     Sheet|SheetNotFoundError result = wb.getSheet("NonExistentSheet");
     test:assertTrue(result is SheetNotFoundError, "Should return SheetNotFoundError");
@@ -77,7 +77,7 @@ function testGetSheetNotFound() returns error? {
     groups: ["workbook"]
 }
 function testCreateNewWorkbook() returns error? {
-    Workbook wb = check openWorkbook();
+    Workbook wb = check new Workbook();
 
     test:assertEquals(wb.getSheetCount(), 0, "New workbook should have no sheets");
     check wb.close();
@@ -87,7 +87,7 @@ function testCreateNewWorkbook() returns error? {
     groups: ["workbook"]
 }
 function testCreateSheet() returns error? {
-    Workbook wb = check openWorkbook();
+    Workbook wb = check new Workbook();
 
     Sheet sheet = check wb.createSheet("TestSheet");
     test:assertEquals(sheet.getName(), "TestSheet", "Sheet name should match");
@@ -99,7 +99,7 @@ function testCreateSheet() returns error? {
     groups: ["workbook"]
 }
 function testWorkbookSave() returns error? {
-    Workbook wb = check openWorkbook();
+    Workbook wb = check new Workbook();
     Sheet sheet = check wb.createSheet("Data");
 
     string[][] data = [["Name", "Value"], ["Test", "123"]];
@@ -124,7 +124,7 @@ function testWorkbookSave() returns error? {
     groups: ["workbook"]
 }
 function testSheetGetRows() returns error? {
-    Workbook wb = check openWorkbook(TEST_DATA_DIR + "simple.xlsx");
+    Workbook wb = check new Workbook(TEST_DATA_DIR + "simple.xlsx");
     Sheet sheet = check wb.getSheetByIndex(0);
 
     string[][] rows = check sheet.getRows();
@@ -136,7 +136,7 @@ function testSheetGetRows() returns error? {
     groups: ["workbook"]
 }
 function testSheetPutRows() returns error? {
-    Workbook wb = check openWorkbook();
+    Workbook wb = check new Workbook();
     Sheet sheet = check wb.createSheet("TestSheet");
 
     string[][] data = [
@@ -158,7 +158,7 @@ function testSheetPutRows() returns error? {
     groups: ["workbook"]
 }
 function testSheetMetadata() returns error? {
-    Workbook wb = check openWorkbook(TEST_DATA_DIR + "simple.xlsx");
+    Workbook wb = check new Workbook(TEST_DATA_DIR + "simple.xlsx");
     Sheet sheet = check wb.getSheetByIndex(0);
 
     string usedRange = sheet.getUsedRange();

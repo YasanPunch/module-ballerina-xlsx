@@ -101,7 +101,7 @@ function testWriteWithCustomSheetName() returns error? {
     check write(data, tempFile, sheetName = "MyCustomSheet");
 
     // Verify by opening as workbook and checking sheet name
-    Workbook wb = check openWorkbook(tempFile);
+    Workbook wb = check new Workbook(tempFile);
     string[] sheetNames = wb.getSheetNames();
     test:assertEquals(sheetNames[0], "MyCustomSheet", "Sheet name should match");
     check wb.close();
@@ -135,6 +135,74 @@ function testRoundTrip() returns error? {
     test:assertEquals(parsed[0].length(), original[0].length(), "Column count should match");
     test:assertEquals(parsed[1][0], "Alice", "Data should match");
     test:assertEquals(parsed[1][1], "95", "Data should match");
+
+    // Cleanup
+    check file:remove(tempFile);
+}
+
+// Test record type with @xlsx:Name annotations
+type AnnotatedEmployee record {|
+    @Name {value: "First Name"}
+    string firstName;
+    @Name {value: "Employee ID"}
+    int id;
+    @Name {value: "Department Name"}
+    string department;
+|};
+
+@test:Config {
+    groups: ["write", "annotation"]
+}
+function testAnnotatedRecordWrite() returns error? {
+    // Write data using annotated record type
+    AnnotatedEmployee[] employees = [
+        {firstName: "John", id: 101, department: "Engineering"},
+        {firstName: "Jane", id: 102, department: "Marketing"}
+    ];
+
+    string tempFile = TEST_DATA_DIR + "temp_annotated.xlsx";
+    check write(employees, tempFile);
+
+    // Parse back as string[][] to verify headers match annotation values
+    string[][] parsed = check parse(tempFile);
+
+    test:assertEquals(parsed.length(), 3, "Should have header + 2 data rows");
+
+    // Verify headers are annotation values, not field names
+    string[] headers = parsed[0];
+    test:assertTrue(headers.indexOf("First Name") != (), "Should have 'First Name' header");
+    test:assertTrue(headers.indexOf("Employee ID") != (), "Should have 'Employee ID' header");
+    test:assertTrue(headers.indexOf("Department Name") != (), "Should have 'Department Name' header");
+
+    // Verify field names are NOT used as headers
+    test:assertTrue(headers.indexOf("firstName") == (), "Should NOT have 'firstName' header");
+    test:assertTrue(headers.indexOf("id") == (), "Should NOT have 'id' header");
+
+    // Cleanup
+    check file:remove(tempFile);
+}
+
+@test:Config {
+    groups: ["parse", "annotation"]
+}
+function testAnnotatedRecordParse() returns error? {
+    // First write data with annotated record to create test file
+    AnnotatedEmployee[] employees = [
+        {firstName: "Alice", id: 201, department: "Sales"},
+        {firstName: "Bob", id: 202, department: "Support"}
+    ];
+
+    string tempFile = TEST_DATA_DIR + "temp_annotated_parse.xlsx";
+    check write(employees, tempFile);
+
+    // Now parse back using the same annotated record type
+    AnnotatedEmployee[] parsed = check parse(tempFile);
+
+    test:assertEquals(parsed.length(), 2, "Should have 2 employee records");
+    test:assertEquals(parsed[0].firstName, "Alice", "First employee firstName should match");
+    test:assertEquals(parsed[0].id, 201, "First employee id should match");
+    test:assertEquals(parsed[0].department, "Sales", "First employee department should match");
+    test:assertEquals(parsed[1].firstName, "Bob", "Second employee firstName should match");
 
     // Cleanup
     check file:remove(tempFile);

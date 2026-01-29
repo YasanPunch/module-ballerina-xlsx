@@ -39,7 +39,7 @@ function setupTestData() returns error? {
     check write(employeeData, TEST_DATA_DIR + "employees.xlsx");
 
     // Create multi_sheet.xlsx using Workbook API
-    Workbook wb = check openWorkbook();
+    Workbook wb = check new Workbook();
 
     Sheet sheet1 = check wb.createSheet("Sheet1");
     string[][] sheet1Data = [["A1", "B1"], ["A2", "B2"]];

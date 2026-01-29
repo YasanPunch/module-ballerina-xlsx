@@ -33,6 +33,9 @@ public enum FormulaMode {
 #     int id;
 # };
 # ```
+#
+# When reading, headers "First Name" and "Employee ID" will map to `firstName` and `id`.
+# When writing, field names will produce headers "First Name" and "Employee ID".
 public type NameConfig record {|
     # The Excel column header name to map to this field.
     string value;
@@ -51,8 +54,10 @@ public const annotation NameConfig Name on record field;
 #                  Example: If headerRow=0, data starts at row 1 by default.
 # + includeEmptyRows - Whether to include empty rows in output (default: false)
 # + formulaMode - How to handle formula cells (default: CACHED)
-# + enableConstraintValidation - Whether to validate type constraints (default: true)
+# + enableConstraintValidation - Whether to validate type constraints (default: true).
+#                                **Note**: Not yet implemented. Currently ignored.
 # + allowDataProjection - Data projection configuration.
+#                         **Note**: Not yet implemented. Currently ignored.
 #                         Set to `false` to disable data projection.
 #                         When enabled (default `{}`):
 #                         - `nilAsOptionalField`: Treat nil values as optional field absence
@@ -88,8 +93,10 @@ public type WriteOptions record {|
 #                  If not specified, defaults to headerRow + 1.
 # + includeEmptyRows - Whether to include empty rows (default: false)
 # + formulaMode - How to handle formula cells (default: CACHED)
-# + enableConstraintValidation - Whether to validate type constraints (default: true)
-# + allowDataProjection - Data projection configuration (see ParseOptions)
+# + enableConstraintValidation - Whether to validate type constraints (default: true).
+#                                **Note**: Not yet implemented. Currently ignored.
+# + allowDataProjection - Data projection configuration (see ParseOptions).
+#                         **Note**: Not yet implemented. Currently ignored.
 public type RowReadOptions record {|
     int headerRow = 0;
     int dataStartRow?;
@@ -110,3 +117,9 @@ public type RowWriteOptions record {|
     boolean writeHeaders = true;
     int startRow = 0;
 |};
+
+# Supported data types for writing to XLSX files.
+# - `anydata[][]` - 2D array of any data (raw cell values)
+# - `record{}[]` - Array of records (field names become headers)
+# - `map<anydata>[]` - Array of maps (keys become headers)
+public type WritableData anydata[][]|record {}[]|map<anydata>[];

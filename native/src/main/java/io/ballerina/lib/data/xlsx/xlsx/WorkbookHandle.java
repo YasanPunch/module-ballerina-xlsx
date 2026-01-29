@@ -145,8 +145,7 @@ public final class WorkbookHandle {
         int idx = (int) index;
 
         if (idx < 0 || idx >= workbook.getNumberOfSheets()) {
-            return DiagnosticLog.error("Sheet index " + idx + " out of range (0-" +
-                    (workbook.getNumberOfSheets() - 1) + ")");
+            return DiagnosticLog.sheetNotFoundError(idx, workbook.getNumberOfSheets() - 1);
         }
 
         Sheet sheet = workbook.getSheetAt(idx);

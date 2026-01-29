@@ -75,7 +75,7 @@ public isolated function parse(string path, string|int sheet = 0, ParseOptions o
 # + path - Path to the output XLSX file
 # + options - Write options
 # + return - Error if write fails
-public isolated function write(anydata[] data, string path, *WriteOptions options) returns Error? = @java:Method {
+public isolated function write(WritableData data, string path, *WriteOptions options) returns Error? = @java:Method {
     'class: "io.ballerina.lib.data.xlsx.Native"
 } external;
 
@@ -98,42 +98,3 @@ public isolated function parseAsStream(stream<byte[], error?> dataStream, string
     'class: "io.ballerina.lib.data.xlsx.Native"
 } external;
 
-// ============================================================================
-// WORKBOOK API - For multi-sheet operations
-// ============================================================================
-
-# Open an XLSX workbook for multi-sheet access.
-#
-# Use this when you need to:
-# - Access multiple sheets efficiently
-# - Create a new workbook with multiple sheets
-# - Modify and save workbooks
-#
-# ```ballerina
-# // Open from file path (most common)
-# xlsx:Workbook wb = check xlsx:openWorkbook("report.xlsx");
-#
-# // Create new empty workbook
-# xlsx:Workbook wb = check xlsx:openWorkbook();
-#
-# // Work with sheets
-# string[] sheets = wb.getSheetNames();
-# xlsx:Sheet sheet = check wb.getSheet("Sales");
-# Employee[] data = check sheet.getRows();
-#
-# // Save and close
-# check wb.save("updated.xlsx");
-# check wb.close();
-# ```
-#
-# + path - File path (string) or nil to create new workbook
-# + return - Workbook instance or error
-public isolated function openWorkbook(string? path = ()) returns Workbook|Error {
-    Workbook workbook = new;
-    if path is string {
-        check workbook.initFromPath(path);
-    } else {
-        check workbook.initNew();
-    }
-    return workbook;
-}

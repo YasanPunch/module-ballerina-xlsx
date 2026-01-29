@@ -165,6 +165,18 @@ public final class DiagnosticLog {
     }
 
     /**
+     * Create a sheet not found error for index-based access.
+     *
+     * @param index Sheet index that was not found
+     * @param maxIndex Maximum valid index
+     * @return BError
+     */
+    public static BError sheetNotFoundError(int index, int maxIndex) {
+        String message = "Sheet at index " + index + " not found (valid range: 0-" + maxIndex + ")";
+        return createTypedError(Constants.SHEET_NOT_FOUND_ERROR_TYPE, message, null);
+    }
+
+    /**
      * Create a type conversion error.
      *
      * @param message     Error message

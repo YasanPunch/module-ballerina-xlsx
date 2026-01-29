@@ -19,7 +19,7 @@ import ballerina/jballerina.java;
 # Represents a worksheet within an Excel workbook.
 #
 # A sheet contains rows of data and provides methods to read and write data.
-public isolated class Sheet {
+public class Sheet {
 
     # Get the name of the sheet.
     #

@@ -182,7 +182,9 @@ public final class CellConverter {
                     try {
                         return (long) Double.parseDouble(value.trim());
                     } catch (NumberFormatException e2) {
-                        return StringUtils.fromString(value);
+                        throw new TypeConversionException(
+                                "Cannot convert '" + value + "' to int",
+                                value, "int", "string", e2);
                     }
                 }
 
@@ -190,14 +192,18 @@ public final class CellConverter {
                 try {
                     return Double.parseDouble(value.trim());
                 } catch (NumberFormatException e) {
-                    return StringUtils.fromString(value);
+                    throw new TypeConversionException(
+                            "Cannot convert '" + value + "' to float",
+                            value, "float", "string", e);
                 }
 
             case TypeTags.DECIMAL_TAG:
                 try {
                     return ValueCreator.createDecimalValue(new BigDecimal(value.trim()));
                 } catch (NumberFormatException e) {
-                    return StringUtils.fromString(value);
+                    throw new TypeConversionException(
+                            "Cannot convert '" + value + "' to decimal",
+                            value, "decimal", "string", e);
                 }
 
             case TypeTags.BOOLEAN_TAG:
@@ -211,10 +217,7 @@ public final class CellConverter {
 
     private static Object convertNumeric(double value, Type targetType) {
         if (targetType == null) {
-            // Default: return as int if whole number, else decimal
-            if (value == Math.floor(value) && !Double.isInfinite(value)) {
-                return (long) value;
-            }
+            // Untyped: always return decimal for type consistency
             return ValueCreator.createDecimalValue(BigDecimal.valueOf(value));
         }
 

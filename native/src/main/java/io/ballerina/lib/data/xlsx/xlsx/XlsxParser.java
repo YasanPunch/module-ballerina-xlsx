@@ -18,6 +18,7 @@
 
 package io.ballerina.lib.data.xlsx.xlsx;
 
+import io.ballerina.lib.data.xlsx.utils.AnnotationUtils;
 import io.ballerina.lib.data.xlsx.utils.DiagnosticLog;
 import io.ballerina.lib.data.xlsx.utils.UsedRangeDetector;
 import io.ballerina.lib.data.xlsx.utils.XlsxConfig;
@@ -97,7 +98,7 @@ public final class XlsxParser {
      * @param targetType Target Ballerina type descriptor
      * @return Parsed value
      */
-    public static Object parseStream(InputStream stream, Object sheet, BMap<BString, Object> options,
+    public static Object parseAsStream(InputStream stream, Object sheet, BMap<BString, Object> options,
                                      BTypedesc targetType) {
         XlsxConfig config = XlsxConfig.fromParseOptions(options);
 
@@ -263,8 +264,8 @@ public final class XlsxParser {
             String fieldName = entry.getKey();
             Field field = entry.getValue();
 
-            // Check for @xlsx:Name annotation (future feature)
-            String headerName = fieldName;
+            // Check for @xlsx:Name annotation
+            String headerName = AnnotationUtils.getHeaderName(recordType, fieldName);
 
             Integer colIndex = headerMap.get(headerName);
             if (colIndex != null) {
@@ -294,7 +295,14 @@ public final class XlsxParser {
                 FieldMapping mapping = entry.getValue();
 
                 Cell cell = row != null ? row.getCell(colIdx) : null;
-                Object value = CellConverter.convert(cell, mapping.type, config);
+                Object value;
+                try {
+                    value = CellConverter.convert(cell, mapping.type, config);
+                } catch (TypeConversionException e) {
+                    String cellAddress = getCellAddress(colIdx, rowIdx);
+                    throw new RuntimeException(DiagnosticLog.typeConversionError(
+                            e.getMessage(), cellAddress, rowIdx, colIdx).getMessage());
+                }
 
                 if (value != null) {
                     record.put(StringUtils.fromString(mapping.fieldName), value);
@@ -367,7 +375,14 @@ public final class XlsxParser {
                 String header = entry.getValue();
 
                 Cell cell = row != null ? row.getCell(colIdx) : null;
-                Object value = CellConverter.convert(cell, constraintType, config);
+                Object value;
+                try {
+                    value = CellConverter.convert(cell, constraintType, config);
+                } catch (TypeConversionException e) {
+                    String cellAddress = getCellAddress(colIdx, rowIdx);
+                    throw new RuntimeException(DiagnosticLog.typeConversionError(
+                            e.getMessage(), cellAddress, rowIdx, colIdx).getMessage());
+                }
 
                 if (value != null) {
                     map.put(StringUtils.fromString(header), value);
@@ -419,6 +434,19 @@ public final class XlsxParser {
             }
         }
         return type.isNilable();
+    }
+
+    /**
+     * Convert column index and row index to Excel cell address (e.g., "A1", "B5").
+     */
+    private static String getCellAddress(int colIdx, int rowIdx) {
+        StringBuilder colName = new StringBuilder();
+        int col = colIdx;
+        while (col >= 0) {
+            colName.insert(0, (char) ('A' + (col % 26)));
+            col = col / 26 - 1;
+        }
+        return colName.toString() + (rowIdx + 1);
     }
 
     /**
