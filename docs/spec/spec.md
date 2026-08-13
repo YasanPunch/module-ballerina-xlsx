@@ -1,10 +1,10 @@
+# Specification: Ballerina XLSX Module
+
 _Owners_: @YasanPunch \
 _Reviewers_: @niveathika \
 _Created_: 2026/05/02 \
-_Updated_: 2026/06/10 \
+_Updated_: 2026/08/12 \
 _Edition_: Swan Lake
-
-# Specification: Ballerina XLSX Module
 
 ## Introduction
 
@@ -119,15 +119,7 @@ target drives the binding; the time component is preserved), and a blank cell �
 
 ### 2.2 CellRange
 
-```ballerina
-# A rectangular cell range with 0-based indices.
-public type CellRange record {|
-    int firstRowIndex;
-    int lastRowIndex;
-    int firstColumnIndex;
-    int lastColumnIndex;
-|};
-```
+`CellRange` describes a rectangular cell region as four 0-based, inclusive indices: `firstRowIndex`, `lastRowIndex`, `firstColumnIndex`, and `lastColumnIndex`.
 
 Used by `Sheet.getUsedCellRange()`, `Sheet.createTable(name, range, headers)`, `Table.getCellRange()`, `Table.getDataCellRange()`, and `Table.resize(...)` (which also accepts an A1 string).
 
@@ -149,43 +141,6 @@ single-row type (`Sheet.getRow`); `ColumnParseOptions` is the single-column type
 requested row would leave nothing to return), and a column read yields scalar cell values rather
 than records (so constraint validation, data projection, and fail-safe do not apply).
 
-```ballerina
-public type CommonParseOptions record {|
-    FormulaMode formulaMode = CACHED;
-    boolean caseInsensitiveHeaders = false;
-|};
-
-public type CommonSheetParseOptions record {|
-    *CommonParseOptions;
-    int? headerRowIndex = 0;
-    int dataStartRowIndex?;
-|};
-
-public type DataProjection record {|
-    boolean nilAsOptionalField = false;
-    boolean absentAsNilableType = false;
-|};
-
-public type ParseOptions record {|
-    *CommonSheetParseOptions;
-    int? rowCount = ();
-    boolean enableConstraintValidation = true;
-    DataProjection|false allowDataProjection = {};
-    FailSafeOptions failSafe?;
-|};
-
-public type RowParseOptions record {|
-    *CommonSheetParseOptions;
-    boolean enableConstraintValidation = true;
-    DataProjection|false allowDataProjection = {};
-|};
-
-public type ColumnParseOptions record {|
-    *CommonSheetParseOptions;
-    int? rowCount = ();
-|};
-```
-
 | Field | Default | Applies to | Meaning |
 |---|---|---|---|
 | `formulaMode` | `CACHED` | all reads | How to handle formula cells. See [3.4](#34-formulamode). |
@@ -206,123 +161,82 @@ the bulk type (`parseTable`, `Table.getRows`) and `TableRowParseOptions` the sin
 (`Table.getRow`); the remaining fields behave exactly as in [3.1](#31-sheet-read-options).
 `rowCount` caps the data rows read, with the header and any totals row always excluded.
 
-```ballerina
-public type TableParseOptions record {|
-    *CommonParseOptions;
-    int? rowCount = ();
-    boolean enableConstraintValidation = true;
-    DataProjection|false allowDataProjection = {};
-    FailSafeOptions failSafe?;
-|};
-
-public type TableRowParseOptions record {|
-    *CommonParseOptions;
-    boolean enableConstraintValidation = true;
-    DataProjection|false allowDataProjection = {};
-|};
-```
-
 ### 3.3 Write options
 
 Write operations are configured by records modelled on what each operation honours; `sheetName` is a positional parameter on `writeSheet`, not an option.
 
-```ballerina
-# Sheet.putRows. startRowIndex is nullable: () resolves to the mode's natural point.
-public type WriteOptions record {|
-    boolean writeHeaders = true;            # write a header row (records/maps); ignored for string[][]
-    int? startRowIndex = ();                # () = bottom for APPEND, row 0 for REPLACE/FAIL_IF_EXISTS
-    SheetWriteMode sheetWriteMode = APPEND;  # add rows non-destructively by default
-|};
+**`WriteOptions`** (`Sheet.putRows`):
 
-# writeSheet.
-public type SheetWriteOptions record {|
-    boolean writeHeaders = true;
-    int startRowIndex = 0;                          # fresh-write block start; ignored by APPEND
-    SheetWriteMode sheetWriteMode = FAIL_IF_EXISTS;  # REPLACE is destructive (drops the sheet)
-|};
+| Field | Default | Behaviour |
+|---|---|---|
+| `writeHeaders` | `true` | Write a header row derived from record field names / map keys. Ignored for `string[][]` data, which is written positionally. |
+| `startRowIndex` | `()` | 0-based target row. `()` resolves to the mode's natural point: the row below the existing data for `APPEND`, row 0 for `REPLACE` / `FAIL_IF_EXISTS`. |
+| `sheetWriteMode` | `APPEND` | Disposition toward existing content (see below) — rows are added non-destructively by default. |
 
-# Sheet.setRow — headerRowIndex locates the header a record/map row aligns against.
-public type RowWriteOptions record {|
-    int headerRowIndex = 0;
-    SheetWriteMode sheetWriteMode = REPLACE;   # overwrite the target row by default
-|};
+**`SheetWriteOptions`** (`writeSheet`):
 
-# How a sheet write treats content already at the target. Shared by writeSheet (target = the
-# named sheet) and putRows / setRow (target = the rows being written); the default differs.
-public enum SheetWriteMode {
-    FAIL_IF_EXISTS,   # fail rather than touch existing content (sheet exists / target rows occupied)
-    REPLACE,          # overwrite in place (writeSheet drops & recreates the sheet; row writers overwrite)
-    APPEND            # add rows without overwriting; content in the way of an insert shifts down (writeSheet appends below the data)
-}
+| Field | Default | Behaviour |
+|---|---|---|
+| `writeHeaders` | `true` | As above. |
+| `startRowIndex` | `0` | 0-based row where a fresh write starts. Used by `FAIL_IF_EXISTS` and `REPLACE`; ignored by `APPEND`, which always writes below the existing data. |
+| `sheetWriteMode` | `FAIL_IF_EXISTS` | Disposition toward the target sheet. The default fails rather than touch an existing sheet; `REPLACE` is destructive for the target sheet (drops and recreates it). |
 
-# writeTable / Table.putRows.
-public type TableWriteOptions record {|
-    TableWriteMode tableWriteMode = REPLACE;
-    int? insertAt = ();   # APPEND only: 0-based data-row index to insert at (() = bottom; REPLACE ignores it)
-|};
+**`RowWriteOptions`** (`Sheet.setRow`):
 
-# How a table write treats the table's existing data. A table always has a data region,
-# so there is no FAIL_IF_EXISTS.
-public enum TableWriteMode {
-    REPLACE,   # replace the data, resizing the data range to fit exactly (grows or shrinks)
-    APPEND     # add rows below the existing data
-}
-```
+| Field | Default | Behaviour |
+|---|---|---|
+| `headerRowIndex` | `0` | 0-based row holding the headers that a record / map row aligns against by name. Ignored for `string[]` data, which is written positionally. |
+| `sheetWriteMode` | `REPLACE` | The target row is overwritten by default. |
 
-A table is self-describing — its header and data range are authoritative — so `TableWriteOptions` carries only `tableWriteMode` and an APPEND-only `insertAt` (a 0-based data-row index); there are no positional or header fields.
+`SheetWriteMode` expresses one contract — the disposition toward content already at the target. It is shared by `writeSheet` (target = the named sheet) and `Sheet.putRows` / `Sheet.setRow` (target = the rows being written); only the per-operation defaults differ, as above.
+
+- `FAIL_IF_EXISTS` — fail rather than touch existing content (the sheet already exists / the target rows are occupied).
+- `REPLACE` — overwrite in place. `writeSheet` drops and recreates the sheet; the row writers overwrite the target rows.
+- `APPEND` — add new content without overwriting. Any content in the way of an insert shifts down to make room; `writeSheet` takes no insert position, so its rows always land below the existing data. See the per-operation behaviour table in [5.2](#52-writesheet).
+
+**`TableWriteOptions`** (`writeTable` / `Table.putRows`):
+
+| Field | Default | Behaviour |
+|---|---|---|
+| `tableWriteMode` | `REPLACE` | `REPLACE` replaces the table's data and resizes the data range to fit exactly (it grows or shrinks). `APPEND` adds rows below the existing data. A table always has a data region, so there is no `FAIL_IF_EXISTS` mode. |
+| `insertAt` | `()` | `APPEND` only: 0-based data-row index to insert at; `()` appends at the bottom. Ignored by `REPLACE`. |
+
+A table is self-describing — its header and data range are authoritative — so `TableWriteOptions` carries no positional or header fields.
 
 ### 3.4 FormulaMode
 
-```ballerina
-public enum FormulaMode {
-    CACHED,    # Use the last calculated/cached value (default).
-    TEXT       # Return the formula string (e.g., "=SUM(A1:A10)").
-}
-```
+`FormulaMode` selects how formula cells are read:
 
-- `CACHED` (default): Returns the formula cell's last cached value. The Ballerina target type must match the cached value's type.
-- `TEXT`: Returns the formula expression as a string. The target field must accept `string` — otherwise a `TypeConversionError` is raised.
+- `CACHED` (default): Returns the formula cell's last calculated/cached value. The Ballerina target type must match the cached value's type.
+- `TEXT`: Returns the formula expression as a string (e.g., `"=SUM(A1:A10)"`). The target field must accept `string` — otherwise a `TypeConversionError` is raised.
 
 **Formula authoring on write is not supported.** Strings starting with `=` are written as plain text.
 
 ### 3.5 FailSafeOptions
 
-```ballerina
-public type FailSafeOptions record {|
-    boolean enableConsoleLogs = true;
-    boolean includeSourceDataInConsole = false;
-    FileOutputMode fileOutputMode?;
-|};
+Fail-safe parsing is enabled by setting the `failSafe` field of a bulk-read options record to a `FailSafeOptions` value:
 
-public type FileOutputMode record {|
-    string filePath;
-    ErrorLogContentType contentType = METADATA;
-    FileWriteOption fileWriteOption = APPEND;
-|};
+| Field | Default | Behaviour |
+|---|---|---|
+| `enableConsoleLogs` | `true` | Log each skipped row's error to the console. |
+| `includeSourceDataInConsole` | `false` | Include the offending row's data in the console output. |
+| `fileOutputMode` | unset | When set to a `FileOutputMode` value, errors are also written to a log file. |
 
-public enum ErrorLogContentType {
-    METADATA,           # {"time":"...","location":{...},"message":"..."}
-    RAW,                # ["value1","value2",...]
-    RAW_AND_METADATA    # {"time":"...","location":{...},"offendingRow":"[...]","message":"..."}
-}
+`FileOutputMode`:
 
-public enum FileWriteOption {
-    APPEND,             # Append errors to existing log file (default).
-    OVERWRITE           # Overwrite log on first error, append after.
-}
+| Field | Default | Behaviour |
+|---|---|---|
+| `filePath` | (required) | Path of the error log file. |
+| `contentType` | `METADATA` | What each log entry contains (see below). |
+| `fileWriteOption` | `APPEND` | `APPEND` adds to an existing log file; `OVERWRITE` replaces the file on the first error of a parse, then appends the rest of that parse's errors. |
 
-public type Location record {|
-    int row;             # 1-based, matching Excel UI
-    int column;          # 1-based
-|};
+`ErrorLogContentType` selects the log-entry shape. The metadata entries are line-delimited JSON described by the public `LogOutput` record (optional `time`, `location`, `message`, and `offendingRow` fields), with `Location` carrying a 1-based `row` / `column` pair matching the Excel UI:
 
-public type LogOutput record {|
-    string time?;
-    Location location?;
-    string message?;
-    string offendingRow?;
-|};
-```
+| Mode | Log-entry shape |
+|---|---|
+| `METADATA` | `{"time":"...","location":{"row":5,"column":2},"message":"..."}` |
+| `RAW` | `["value1","value2",...]` — the offending row's data only |
+| `RAW_AND_METADATA` | `{"time":"...","location":{...},"offendingRow":"[...]","message":"..."}` |
 
 `failSafe` lives on the bulk-read types (`ParseOptions`, `TableParseOptions`) — it applies to `parseSheet`, `parseTable`, `Sheet.getRows`, and `Table.getRows`. When set, row-level errors (`TypeConversionError`, `ConstraintValidationError`) are logged and the offending row is skipped. Single-row reads (`Sheet.getRow`, `Table.getRow`) are fail-fast and have no `failSafe`. Structural errors always fail immediately.
 
@@ -332,15 +246,7 @@ public type LogOutput record {|
 
 ### 4.1 @xlsx:Name
 
-Maps a record field to a specific Excel column header. Bidirectional — used on both read and write.
-
-```ballerina
-public type NameConfig record {|
-    string value;
-|};
-
-public const annotation NameConfig Name on record field;
-```
+Maps a record field to a specific Excel column header when the two names differ. The annotation is declared on record fields and takes a single `value` string — the Excel column header. Bidirectional — used on both read and write; fields without it use the field name as the header. Annotation values are trimmed on lookup, so accidental surrounding whitespace does not break matching.
 
 Example:
 
@@ -517,33 +423,36 @@ xlsx:Workbook wb3 = check xlsx:fromBytes(sourceBytes);      # open from bytes
 
 ### 6.2 Workbook class
 
-```ballerina
-public isolated class Workbook {
-    # Sheet access
-    public isolated function getSheetNames() returns string[]|Error;
-    public isolated function getSheetCount() returns int|Error;
-    public isolated function hasSheet(string name) returns boolean|Error;
-    public isolated function getSheet(string|int sheet) returns Sheet|Error;
-    public isolated function createSheet(string name) returns Sheet|Error;
-    public isolated function deleteSheet(string|int sheet) returns Error?;
+`Workbook` exposes three method groups. All methods return `|Error`, and every method on a closed workbook returns a typed `Error` rather than panicking.
 
-    # Table access (tables are unique by name across the workbook)
-    public isolated function getTable(string name) returns Table|Error;
-    public isolated function getAllTables() returns Table[]|Error;
+**Sheet access.** Sheet name lookups are case-insensitive, matching Excel's own semantics.
 
-    # Lifecycle
-    public isolated function save() returns Error?;                   # overwrites source path; error if in-memory
-    public isolated function saveAs(string path) returns Error?;      # writes to path; rebinds source path
-    public isolated function toBytes() returns byte[]|Error;          # serialises workbook as XLSX bytes
-    public isolated function close() returns Error?;                  # releases POI resources
-}
-```
+| Method | Behaviour |
+|---|---|
+| `getSheetNames()` | Names of all sheets, in tab order. |
+| `getSheetCount()` | Number of sheets. |
+| `hasSheet(name)` | Whether a sheet with the name exists. |
+| `getSheet(name\|index)` | Returns the `Sheet` by name or 0-based index; `SheetNotFoundError` if absent. |
+| `createSheet(name)` | Creates and returns a new sheet. `SheetExistsError` for a duplicate name; the name must satisfy Excel's rules (1–31 characters, none of `\ / ? * [ ] :`). |
+| `deleteSheet(name\|index)` | Deletes the sheet and invalidates any vended handles to it. Deleting the last sheet is refused (Excel rejects sheet-less workbooks). |
 
-**`save()` vs `saveAs()`:** `save()` overwrites the source path bound at construction (or by a previous `saveAs`). It errors for in-memory workbooks with no source path. `saveAs(path)` always writes to the given path and binds the workbook to that path so subsequent `save()` calls write there.
+**Table access.** Tables are unique by name across the workbook.
 
-Both writes are atomic — temp file in the same directory + atomic rename. A failed write never destroys the original file.
+| Method | Behaviour |
+|---|---|
+| `getTable(name)` | Returns the `Table` by name from any sheet; `TableNotFoundError` if absent. |
+| `getAllTables()` | Every table in the workbook. |
 
-**`toBytes()`** serializes the current workbook state as XLSX bytes. Useful for uploading via HTTP / SFTP without going through disk.
+**Lifecycle.**
+
+| Method | Behaviour |
+|---|---|
+| `save()` | Overwrites the source path bound at construction (or by a previous `saveAs`). Errors for in-memory workbooks with no source path. |
+| `saveAs(path)` | Writes to `path` and binds the workbook to it, so subsequent `save()` calls write there. |
+| `toBytes()` | Serializes the current workbook state as XLSX bytes — for HTTP / SFTP transfer without going through disk. |
+| `close()` | Releases native resources and invalidates the workbook and all vended handles. |
+
+Both file writes are atomic — temp file in the same directory + atomic rename. A failed write never destroys the original file.
 
 **`close()`** is required for resource hygiene. A phantom-reference cleanup thread catches workbooks that escape without `close()`, but explicit close is the contract.
 
@@ -553,54 +462,44 @@ Both writes are atomic — temp file in the same directory + atomic rename. A fa
 
 `Sheet` is an object type — instances are obtained from a `Workbook` (`getSheet`, `createSheet`); it cannot be constructed directly with `new`.
 
-```ballerina
-public type Sheet isolated object {
-    # Identity and dimensions
-    public isolated function getName() returns string|Error;
-    public isolated function getUsedRange() returns string|Error;                            # A1 notation, e.g., "A1:D50"
-    public isolated function getUsedCellRange() returns CellRange?|Error;                    # 0-based indices; nil if empty
-    public isolated function getRowCount() returns int|Error;
-    public isolated function getColumnCount() returns int|Error;
+**Identity and dimensions.**
 
-    # Row reads
-    public isolated function getRows(ParseOptions options = {}, typedesc<Row> t = <>)
-            returns t[]|Error;
-    public isolated function getRow(int index, RowParseOptions options = {},
-            typedesc<Row> t = <>) returns t|Error;
-    public isolated function getColumn(string|int columnRef, ColumnParseOptions options = {},
-            typedesc<CellValue> t = <>) returns t[]|Error;
-    public isolated function getCell(int rowIndex, int columnIndex, typedesc<CellValue> t = <>)
-            returns t|Error;
+| Method | Behaviour |
+|---|---|
+| `getName()` | The sheet's name. |
+| `getUsedRange()` | The used range in A1 notation (e.g., `"A1:D50"`). |
+| `getUsedCellRange()` | The used range as a 0-based `CellRange`; `()` for an empty sheet. |
+| `getRowCount()` / `getColumnCount()` | Dimensions of the used range. |
 
-    # Row writes
-    public isolated function putRows(Row[] data, *WriteOptions options) returns Error?;
-    public isolated function setRow(int rowIndex, Row data, *RowWriteOptions options)
-            returns Error?;
-    public isolated function setColumn(string|int columnRef, CellValue[] data) returns Error?;
-    public isolated function setCell(int rowIndex, int columnIndex, CellValue value)
-            returns Error?;
-    public isolated function setCellByAddress(string cellAddress, CellValue value)
-            returns Error?;                                                         # A1 notation
+**Reads.** All reads follow the binding and options semantics of the simple API ([5.1](#51-parsesheet), [3.1](#31-sheet-read-options)).
 
-    # Sheet management
-    public isolated function deleteRow(int index) returns Error?;                            # shifts subsequent rows up
-    public isolated function rename(string newName) returns Error?;
+| Method | Behaviour |
+|---|---|
+| `getRows(options, t)` | Bulk read into `t[]` — the sheet-level equivalent of `parseSheet`. |
+| `getRow(index, options, t)` | The single data row at `dataStartRowIndex + index`. Fail-fast: no `failSafe`. |
+| `getColumn(columnRef, options, t)` | One column's cells. `columnRef` is a header name (`string`; honours `caseInsensitiveHeaders`) or a 0-based index (`int`). |
+| `getCell(rowIndex, columnIndex, t)` | One cell bound to the target type `t` (default `CellValue`). The default yields the cell's natural value (a date/time cell becomes an ISO `string`); pinning `time:Civil` / `time:Date` / `time:TimeOfDay` (or a scalar) yields that type. A blank cell is `()` for a target that admits it, or an error for a non-nilable scalar target. |
 
-    # Table access
-    public isolated function getTable(string name) returns Table|Error;
-    public isolated function getTables() returns Table[]|Error;
-    public isolated function createTable(string name, CellRange|string range,
-            string[]? headers = ()) returns Table|Error;
-    public isolated function createTableFromData(string name, Row[] data,
-            int startRowIndex = 0, int startColumnIndex = 0) returns Table|Error;
-    public isolated function deleteTable(string name) returns Error?;
-};
-```
+**Writes.**
 
-Notes:
-- `Sheet.getCell` binds the cell to the target type `t` (default `CellValue`). The default yields the cell's natural value (a date/time cell becomes an ISO `string`); pinning a `time:Civil` / `time:Date` / `time:TimeOfDay` (or a scalar) yields that type. A blank cell is `()` for a target that admits it (the default `CellValue` does), or an error for a non-nilable scalar target.
-- `Sheet.getColumn` accepts a column reference as either a header name (`string`) or a 0-based index (`int`); `caseInsensitiveHeaders` applies to the header lookup.
-- `Sheet.deleteRow(index)` removes the row and shifts subsequent rows up by one to preserve dense indexing. If the deletion would shift a table on the sheet (moving its cells but not its definition), it is refused with a `TableOverlapError` — use `Table.deleteRow` to delete a row from inside a table.
+| Method | Behaviour |
+|---|---|
+| `putRows(data, *WriteOptions)` | Bulk write; `APPEND` by default (see [3.3](#33-write-options)). |
+| `setRow(rowIndex, data, *RowWriteOptions)` | Writes one row; `REPLACE` by default. |
+| `setColumn(columnRef, data)` | Writes a column of `CellValue`s, addressed like `getColumn`. |
+| `setCell(rowIndex, columnIndex, value)` | Writes one cell. |
+| `setCellByAddress(cellAddress, value)` | Writes one cell addressed in A1 notation (e.g., `"B2"`). |
+
+**Sheet management and tables.**
+
+| Method | Behaviour |
+|---|---|
+| `deleteRow(index)` | Removes the row and shifts subsequent rows up by one to preserve dense indexing. Refused with a `TableOverlapError` if the shift would move a table's cells (moving them but not the table's definition) — use `Table.deleteRow` to delete a row from inside a table. |
+| `rename(newName)` | Renames the sheet; Excel's sheet-name rules apply. |
+| `getTable(name)` / `getTables()` | Tables anchored on this sheet; `TableNotFoundError` for a missing name. |
+| `createTable(name, range, headers)` | Creates a table over a `CellRange` or A1-string range, optionally naming the headers. |
+| `createTableFromData(name, data, startRowIndex, startColumnIndex)` | Creates a table sized to `data` at the given origin (default `0, 0`). |
+| `deleteTable(name)` | Deletes the table and invalidates its vended handles. |
 
 ---
 
@@ -608,39 +507,34 @@ Notes:
 
 `Table` is an object type — instances are obtained from a `Workbook` or `Sheet` (see below); it cannot be constructed directly with `new`.
 
-```ballerina
-public type Table isolated object {
-    # Identity
-    public isolated function getName() returns string|Error;
-    public isolated function getDisplayName() returns string|Error;
-    public isolated function getSheetName() returns string|Error;
+**Identity, range, and dimensions.**
 
-    # Range and dimensions
-    public isolated function getRange() returns string|Error;            # full table, A1 notation
-    public isolated function getCellRange() returns CellRange|Error;     # full table, 0-based record
-    public isolated function getDataRange() returns string|Error;        # data rows only, A1 notation
-    public isolated function getDataCellRange() returns CellRange|Error; # data rows only, 0-based record
-    public isolated function getRowCount() returns int|Error;            # data rows only
-    public isolated function getColumnCount() returns int|Error;
+| Method | Behaviour |
+|---|---|
+| `getName()` / `getDisplayName()` / `getSheetName()` | The table's name, display name, and owning sheet. |
+| `getRange()` / `getCellRange()` | The full table range (header, data, and totals row) in A1 notation / as a 0-based `CellRange`. |
+| `getDataRange()` / `getDataCellRange()` | The data rows only, in the same two forms. |
+| `getRowCount()` | Number of data rows (header and totals row excluded). |
+| `getColumnCount()` | Number of columns. |
 
-    # Headers and data
-    public isolated function getHeaders() returns string[]|Error;
-    public isolated function getRows(TableParseOptions options = {}, typedesc<Row> t = <>)
-            returns t[]|Error;
-    public isolated function getRow(int index, TableRowParseOptions options = {},
-            typedesc<Row> t = <>) returns t|Error;
-    public isolated function putRows(Row[] data, *TableWriteOptions options) returns Error?;
+**Headers and data.** Reads follow the table-read semantics of [5.3](#53-parsetable) and [3.2](#32-table-read-options).
 
-    # Total row
-    public isolated function hasTotalRow() returns boolean|Error;
-    public isolated function getTotalRow(typedesc<map<CellValue>> t = <>) returns t|Error;
+| Method | Behaviour |
+|---|---|
+| `getHeaders()` | Header names from the table's own header row. |
+| `getRows(options, t)` | Bulk read into `t[]` — the handle-level equivalent of `parseTable`. |
+| `getRow(index, options, t)` | One data row (0-based within the data range). Fail-fast: no `failSafe`. |
+| `putRows(data, *TableWriteOptions)` | Replaces or appends the table's data (see [3.3](#33-write-options) and the resize semantics below). |
+| `hasTotalRow()` | Whether the table has a totals row. |
+| `getTotalRow(t)` | The totals row's values as a `map<CellValue>` keyed by header. |
 
-    # Modification
-    public isolated function rename(string newName) returns Error?;
-    public isolated function resize(CellRange|string newRange) returns Error?;
-    public isolated function deleteRow(int index) returns Error?;         # shrinks the table to fit
-};
-```
+**Modification.**
+
+| Method | Behaviour |
+|---|---|
+| `rename(newName)` | Renames the table; table-name rules apply (1–255 characters, starts with a letter or underscore, no spaces), and a duplicate name is a `TableExistsError`. |
+| `resize(newRange)` | Changes the table's range to a `CellRange` or A1 string (see the resize semantics below). |
+| `deleteRow(index)` | Deletes one data row, shrinking the table to fit (see below). |
 
 Tables are obtained from `Workbook.getTable(name)`, `Workbook.getAllTables()`, `Sheet.getTable(name)`, `Sheet.getTables()`, `Sheet.createTable(...)`, or `Sheet.createTableFromData(...)`. Table names are unique across the entire workbook.
 
@@ -652,32 +546,30 @@ Tables are obtained from `Workbook.getTable(name)`, `Workbook.getAllTables()`, `
 
 ## 9. Error Types
 
-```ballerina
-public type Error distinct error<ErrorDetails>;
-public type ParseError distinct Error;
-public type FileNotFoundError distinct Error;
-public type SheetNotFoundError distinct Error;
-public type SheetExistsError distinct Error;
-public type TypeConversionError distinct Error;
-public type ConstraintValidationError distinct Error;
-public type TableNotFoundError distinct Error;
-public type TableExistsError distinct Error;
-public type TableOverlapError distinct Error;
-public type InvalidTableRangeError distinct Error;
+Every module error is a subtype of the base `Error` type, which carries `ErrorDetails`. The subtypes fall into two behavioural groups.
 
-public type ErrorDetails record {|
-    string sheetName?;
-    string tableName?;
-    string cellAddress?;     # A1 notation, e.g., "B5"
-    int rowNumber?;          # 1-based, matching Excel UI
-    int columnNumber?;       # 1-based, matching Excel UI
-    string fieldName?;       # record field involved (e.g., the field that failed constraints)
-|};
-```
+**Structural errors** — always fail immediately, regardless of `failSafe`:
 
-Semantics:
-- **Structural errors** (`ParseError`, `FileNotFoundError`, `SheetNotFoundError`, `SheetExistsError`, `TableNotFoundError`, `TableExistsError`, `TableOverlapError`, `InvalidTableRangeError`) fail immediately, regardless of `failSafe`.
-- **Row-level errors** (`TypeConversionError`, `ConstraintValidationError`) fail immediately by default; with `failSafe` set, the offending row is logged and skipped. `ConstraintValidationError` chains the underlying `constraint:Error` as its cause and records the offending field in `ErrorDetails.fieldName` when determinable.
+- `ParseError` — the file is not a workbook the module can process.
+- `FileNotFoundError` — the given path does not exist.
+- `SheetNotFoundError` / `SheetExistsError` — a sheet lookup failed / the target sheet already exists (`writeSheet`'s default mode, `createSheet`).
+- `TableNotFoundError` / `TableExistsError` — a table lookup failed / a table with the name already exists.
+- `TableOverlapError` — an operation would move another table's cells without moving its definition (a sheet-row insert or delete through a table's region, or a table resize collision).
+- `InvalidTableRangeError` — a table range is malformed or not permitted.
+
+**Row-level errors** — fail immediately by default; with `failSafe` set, the offending row is logged and skipped:
+
+- `TypeConversionError` — a cell value cannot bind to the target field type.
+- `ConstraintValidationError` — a parsed record failed its `@constraint` annotations. Chains the underlying `constraint:Error` as its cause and records the offending field in `ErrorDetails.fieldName` when determinable.
+
+**`ErrorDetails`** — every field optional, populated when determinable:
+
+| Field | Meaning |
+|---|---|
+| `sheetName` / `tableName` | The sheet / table involved. |
+| `cellAddress` | A1 notation, e.g. `"B5"`. |
+| `rowNumber` / `columnNumber` | 1-based, matching the Excel UI. |
+| `fieldName` | The record field involved (e.g., the field that failed constraint validation). |
 
 **Index conventions:** option fields (`headerRowIndex`, `dataStartRowIndex`, `startRowIndex`) and `CellRange` are **0-based**; `ErrorDetails.rowNumber`/`columnNumber` and `Location` are **1-based**, matching the Excel UI. Code that feeds error locations back into option values must convert between the two.
 
