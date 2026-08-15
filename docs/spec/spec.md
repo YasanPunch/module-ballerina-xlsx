@@ -3,7 +3,7 @@
 _Owners_: @YasanPunch \
 _Reviewers_: @niveathika \
 _Created_: 2026/05/02 \
-_Updated_: 2026/08/12 \
+_Updated_: 2026/08/15 \
 _Edition_: Swan Lake
 
 ## Introduction
@@ -533,7 +533,7 @@ Both file writes are atomic — temp file in the same directory + atomic rename.
 | Method | Behaviour |
 |---|---|
 | `rename(newName)` | Renames the table; table-name rules apply (1–255 characters, starts with a letter or underscore, no spaces), and a duplicate name is a `TableExistsError`. |
-| `resize(newRange)` | Changes the table's range to a `CellRange` or A1 string (see the resize semantics below). A malformed or out-of-bounds range is an `InvalidTableRangeError`; a range that would collide with another table is a `TableOverlapError`. |
+| `resize(newRange)` | Changes the table's range to a `CellRange` or A1 string (see the resize semantics below). A range that lacks a header row plus at least one data row, or lies outside the sheet bounds, is an `InvalidTableRangeError`; a range that would collide with another table is a `TableOverlapError`. |
 | `deleteRow(index)` | Deletes one data row, shrinking the table to fit (see below). |
 
 Tables are obtained from `Workbook.getTable(name)`, `Workbook.getAllTables()`, `Sheet.getTable(name)`, `Sheet.getTables()`, `Sheet.createTable(...)`, or `Sheet.createTableFromData(...)`. Table names are unique across the entire workbook.
