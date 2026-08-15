@@ -401,7 +401,7 @@ check xlsx:writeTable(sales, "sales.xlsx", "SalesTable");
 
 ## 6. Workbook API
 
-The Workbook API exposes a stateful workbook object with explicit lifecycle.
+The Workbook API exposes a stateful workbook object with explicit lifecycle. A workbook and the `Sheet` and `Table` handles obtained from it are not safe for concurrent mutation.
 
 ### 6.1 Construction
 
@@ -434,7 +434,7 @@ xlsx:Workbook wb3 = check xlsx:fromBytes(sourceBytes);      # open from bytes
 | `hasSheet(name)` | Whether a sheet with the name exists. |
 | `getSheet(name\|index)` | Returns the `Sheet` by name or 0-based index; `SheetNotFoundError` if absent. |
 | `createSheet(name)` | Creates and returns a new sheet. `SheetExistsError` for a duplicate name; the name must satisfy Excel's rules (1–31 characters, none of `\ / ? * [ ] :`). |
-| `deleteSheet(name\|index)` | Deletes the sheet and invalidates any vended handles to it. Deleting the last sheet is refused (Excel rejects sheet-less workbooks). |
+| `deleteSheet(name\|index)` | Deletes the sheet and invalidates any vended handles to it; `SheetNotFoundError` if absent. Deleting the last sheet is refused (Excel rejects sheet-less workbooks). |
 
 **Table access.** Tables are unique by name across the workbook.
 
@@ -497,7 +497,7 @@ Both file writes are atomic — temp file in the same directory + atomic rename.
 | `deleteRow(index)` | Removes the row and shifts subsequent rows up by one to preserve dense indexing. Refused with a `TableOverlapError` if the shift would move a table's cells (moving them but not the table's definition) — use `Table.deleteRow` to delete a row from inside a table. |
 | `rename(newName)` | Renames the sheet; Excel's sheet-name rules apply. |
 | `getTable(name)` / `getTables()` | Tables anchored on this sheet; `TableNotFoundError` for a missing name. |
-| `createTable(name, range, headers)` | Creates a table over a `CellRange` or A1-string range, optionally naming the headers. |
+| `createTable(name, range, headers)` | Creates a table over a `CellRange` or A1-string range. The range's first row is the table's header row; the optional `headers` values override the header names. |
 | `createTableFromData(name, data, startRowIndex, startColumnIndex)` | Creates a table sized to `data` at the given origin (default `0, 0`). |
 | `deleteTable(name)` | Deletes the table and invalidates its vended handles. |
 
@@ -526,21 +526,21 @@ Both file writes are atomic — temp file in the same directory + atomic rename.
 | `getRow(index, options, t)` | One data row (0-based within the data range). Fail-fast: no `failSafe`. |
 | `putRows(data, *TableWriteOptions)` | Replaces or appends the table's data (see [3.3](#33-write-options) and the resize semantics below). |
 | `hasTotalRow()` | Whether the table has a totals row. |
-| `getTotalRow(t)` | The totals row's values as a `map<CellValue>` keyed by header. |
+| `getTotalRow(t)` | The totals row's values as a `map<CellValue>` keyed by header. Errors when the table has no totals row — check with `hasTotalRow()` first. |
 
 **Modification.**
 
 | Method | Behaviour |
 |---|---|
 | `rename(newName)` | Renames the table; table-name rules apply (1–255 characters, starts with a letter or underscore, no spaces), and a duplicate name is a `TableExistsError`. |
-| `resize(newRange)` | Changes the table's range to a `CellRange` or A1 string (see the resize semantics below). |
+| `resize(newRange)` | Changes the table's range to a `CellRange` or A1 string (see the resize semantics below). A malformed or out-of-bounds range is an `InvalidTableRangeError`; a range that would collide with another table is a `TableOverlapError`. |
 | `deleteRow(index)` | Deletes one data row, shrinking the table to fit (see below). |
 
 Tables are obtained from `Workbook.getTable(name)`, `Workbook.getAllTables()`, `Sheet.getTable(name)`, `Sheet.getTables()`, `Sheet.createTable(...)`, or `Sheet.createTableFromData(...)`. Table names are unique across the entire workbook.
 
 `Table.putRows` resizes the underlying `XSSFTable` to fit the incoming data — growing or shrinking the data range under the default `REPLACE`, or adding rows below the existing data (or at `insertAt`, a 0-based data-row index) under `APPEND` (see [3.3](#33-write-options)). The totals row and any content below the table are carried along by the resize; a resize that would shift another table fails with a `TableOverlapError`. Conversely, inserting *sheet* rows (`Sheet.putRows` / `setRow` with `APPEND`) into a table's region is refused with the same error — modify a table through the Table API rather than by shifting its rows from the sheet.
 
-`Table.deleteRow(index)` deletes a single data row (0-based within the data range), shrinking the table to fit: the totals row and any content below move up to close the gap. A table must keep at least one data row, so the last data row cannot be deleted; a delete that would shift another table fails with a `TableOverlapError`.
+`Table.deleteRow(index)` deletes a single data row (0-based within the data range), shrinking the table to fit: the totals row and any content below move up to close the gap. An index outside the data range is refused with an `InvalidTableRangeError` — as is deleting the only remaining data row, since a table must keep at least one; a delete that would shift another table fails with a `TableOverlapError`.
 
 ---
 
